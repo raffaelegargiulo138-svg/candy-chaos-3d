@@ -1157,9 +1157,10 @@ window.addEventListener('keydown',e=>{
   return;
  }
  if(paused){if(e.code==='Escape'&&currentModal!=='intro')resume();return}
- if(e.code==='Space')startJump();
+ if(e.code==='KeyX'){showCheats();return}
+ if(e.code==='Space'&&!cheatFlags.fly)startJump();
  else if(e.code==='KeyR')startDash();
- else if(e.code==='ControlLeft'||e.code==='ControlRight')startSlide();
+ else if((e.code==='ControlLeft'||e.code==='ControlRight')&&!cheatFlags.fly)startSlide();
  else if(e.code==='KeyV')tryVault();
  else if(e.code==='KeyF')startGrapple();
  else if(e.code==='KeyE')interact();
@@ -1215,10 +1216,10 @@ function updateParkour(dt){
  else{
  const dx=state.vx*dt,dz=state.vz*dt;
  let wallHit=null;
- const bx=obstructs(state.x+dx,state.z,state.y);if(!bx)state.x+=dx;else wallHit=bx;
+ const bx=cheatFlags.fly&&state.y>7?null:obstructs(state.x+dx,state.z,state.y);if(!bx)state.x+=dx;else wallHit=bx;
  const bz=obstructs(state.x,state.z+dz,state.y);if(!bz)state.z+=dz;else wallHit=bz;
  const previousY=state.y;
- state.vy-=24.0*dt;
+ if(cheatFlags.fly){state.vy=((keyDown.Space?1:0)-((keyDown.ControlLeft||keyDown.ControlRight)?1:0))*9;state.y=clamp(state.y+state.vy*dt,0,65);state.airJumps=0}else state.vy-=24.0*dt;
  if(wallHit&&state.y>.3&&sprint&&state.st>0){state.vy=Math.max(state.vy,-1.3);state.st=Math.max(0,state.st-dt*23);state.wallLeft+=dt;if(state.wallLeft>.45&&Math.random()<.06)toast('🧗 CORSA SUL MURO!',.6)}else state.wallLeft=0;
  state.y+=state.vy*dt;
  let floor=0;
@@ -1232,8 +1233,22 @@ function updateParkour(dt){
  walking+=len*speed*dt*.95;for(let limb of limbs){limb.leg.rotation.x=Math.sin(walking+limb.side*1.57)*Math.min(.7,len*.7);limb.arm.rotation.x=-Math.sin(walking+limb.side*1.57)*Math.min(.6,len*.6)-.13}
  if(state.y>.15){limbs[0].leg.rotation.x=.6;limbs[1].leg.rotation.x=-.4;limbs[0].arm.rotation.x=-.6;limbs[1].arm.rotation.x=-.1}
 }
-function shotDirection(){return new THREE.Vector3(-Math.sin(state.yaw)*Math.cos(state.pitch),Math.sin(state.pitch),-Math.cos(state.yaw)*Math.cos(state.pitch)).normalize()}
-function hitEnemy(e,power,index=state.weapon){if(!e.alive||e.state==='underground')return;e.hp-=power;e.stun=index===20?1.25:.18;fxImpact(e.group.position.clone().add(new THREE.Vector3(0,1.55,0)),index);state.hits++; setEnemyBar(e);
+
+const cheatFlags={fly:false,aimbot:false,instantKO:false,freeze:false};
+function cheatTarget(){let best=null,dist=70;for(const e of enemies){if(!e.alive||!e.group.visible||e.state==='underground')continue;const d=Math.hypot(e.group.position.x-state.x,e.group.position.z-state.z);if(d<dist){dist=d;best=e}}return best}
+function cheatAim(){if(!cheatFlags.aimbot||gameMode==='multi')return null;const e=cheatTarget();return e?new THREE.Vector3(e.group.position.x-state.x,e.group.position.y+1.6-state.y-1.42,e.group.position.z-state.z).normalize():null}
+function showCheats(){
+ if(gameMode==='menu')return;
+ if(gameMode==='multi'&&!onlineHost){toast('🔒 Solo il creatore della stanza può attivare i trucchi',2);return}
+ const labels={fly:['🪽 FLY','SPAZIO sale · CTRL scende'],aimbot:['🎯 AIMBOT','Mira automatica sui nemici'],instantKO:['💥 KILL','Un colpo mette KO i nemici'],freeze:['🧊 FREEZE','Blocca tutti i nemici']};
+ const html=Object.entries(labels).map(([k,v])=>'<div class="tile" style="margin:7px 0"><b>'+v[0]+' — '+(cheatFlags[k]?'🟢 ATTIVO':'⚪ SPENTO')+'</b><p class="smalltext">'+v[1]+'</p><button class="btn cheatButton" data-cheat="'+k+'">'+(cheatFlags[k]?'DISATTIVA':'ATTIVA')+'</button></div>').join('');
+ uiModal('🧩 TRUCCHI · TASTO X','<p>Disponibili in tutte le modalità. In multiplayer solo al creatore della stanza.</p>'+html,[{text:'▶ RIPRENDI',fn:resume},{text:'❌ SPEGNI TUTTO',fn:()=>{for(const k in cheatFlags)cheatFlags[k]=false;showCheats()},secondary:true}],'TRUCCHI');
+ document.querySelectorAll('[data-cheat]').forEach(b=>b.onclick=()=>{cheatFlags[b.dataset.cheat]=!cheatFlags[b.dataset.cheat];showCheats()});
+}
+window.__candyCheats=cheatFlags;
+
+function shotDirection(){return cheatAim()||new THREE.Vector3(-Math.sin(state.yaw)*Math.cos(state.pitch),Math.sin(state.pitch),-Math.cos(state.yaw)*Math.cos(state.pitch)).normalize()}
+function hitEnemy(e,power,index=state.weapon){if(!e.alive||e.state==='underground')return;if(cheatFlags.instantKO&&gameMode!=='multi')power=Math.max(power,e.hp);e.hp-=power;e.stun=index===20?1.25:.18;fxImpact(e.group.position.clone().add(new THREE.Vector3(0,1.55,0)),index);state.hits++; setEnemyBar(e);
  if(e.hp<=0){e.alive=false;if(gameMode==='single')addCosmeticCandies(e.boss?25:6); setEnemyBar(e); state.enemyDefeats[e.type]=(state.enemyDefeats[e.type]||0)+1;state.combo++;puff(e.group.position.x,e.group.position.y+1.4,e.group.position.z,0xffcf87,28,9);e.group.visible=false;e.respawn= e.type==='preside'||e.type==='vice'?999999:37+rng()*13;
  if(e.type==='preside'){state.bossDefeated=true;toast('👑 IL PRESIDE VOLANTE SI ARRENDE!',4)}
  else if(e.type==='vice'){state.viceDefeated=true;toast('🕳️ IL VICEPRESIDE ESCE DALLA TANA!',4)}
@@ -1243,7 +1258,7 @@ function hitEnemy(e,power,index=state.weapon){if(!e.alive||e.state==='undergroun
 function fire(){if(state.shotCD>0||paused)return;if(gameMode==='multi'&&roomFreeze&&!onlineHost)return;if(cheats.aimbot)updateCheatAimbot();if(gameMode==='multi'&&netReady&&cheats.aimbot&&onlineHost)sendNet({type:'move',x:state.x,y:state.y,z:state.z,yaw:state.yaw,pitch:state.pitch,weapon:state.weapon});window.__candyLastFiredWeapon=state.weapon;window.__candyShotCount=(window.__candyShotCount||0)+1;const w=weapons[state.weapon];state.shotCD=w.rate;state.attacks++;fxMuzzle(state.weapon);if(gameMode==='multi'&&netReady)sendNet({type:'fire',weapon:state.weapon});
  if(w.kind==='melee'||w.kind==='nova'){let radius=w.kind==='nova'?10:4.2;let dir=shotDirection();const pos=new THREE.Vector3(state.x,state.y+1.5,state.z);fxBurst(pos,state.weapon,w.kind==='nova'?42:18,w.kind==='nova'?13:6);fxRing(pos,state.weapon,w.kind==='nova'?3.1:1.2);for(let e of enemies){if(!e.alive||e.state==='underground')continue;let d=e.group.position.clone().sub(player.position),dist=d.length();if(dist<radius&&(w.kind==='nova'||d.normalize().dot(dir)>.1))hitEnemy(e,w.power,state.weapon)}return}
  let dir=shotDirection();const right=new THREE.Vector3(Math.cos(state.yaw),0,-Math.sin(state.yaw));const origin=new THREE.Vector3(state.x,state.y+1.42,state.z).addScaledVector(dir,.92).addScaledVector(right,.34);
- if(aiming){const target=camera.position.clone().addScaledVector(dir,60);dir=target.sub(origin).normalize()}
+ if(cheatFlags.aimbot&&gameMode!=='multi'){const target=cheatTarget();if(target)dir=target.group.position.clone().add(new THREE.Vector3(0,1.6,0)).sub(origin).normalize()}else if(aiming){const target=camera.position.clone().addScaledVector(dir,60);dir=target.sub(origin).normalize()}
  let obj=candyProjectile(state.weapon,origin);
  projectiles.push({mesh:obj,direction:dir,speed:w.speed,life:w.kind==='boom'?2.3:1.65,team:'player',power:w.power,color:w.color,kind:w.kind,index:state.weapon,trail:0,vy:0,bounces:0})}
 function damagePlayer(power){if(state.invincible>0||paused||gameMode==='creative')return;state.hp-=power;state.invincible=.54;$('damage').style.opacity=.7;state.combo=0;puff(state.x,state.y+1,state.z,0xff7791,7,3);
@@ -1270,7 +1285,7 @@ function attackEnemy(e){let t=TYPES[e.type],origin=e.group.position.clone().add(
  if(e.type==='dottore'){for(let k=0;k<4;k++)spawnShot(origin,target,e.type,.37);return}
  if(e.type==='pasticcere'){for(let k=0;k<4;k++)spawnShot(origin,target,e.type,.31);puff(origin.x,1.2,origin.z,0xe1dfff,7,4);return}
  spawnShot(origin,target,e.type)}
-function updateEnemies(dt){if(cheats.freeze)return;for(let e of enemies){if(!e.alive){e.respawn-=dt;if(e.respawn<=0){e.alive=true;e.hp=e.maxHp;e.group.position.set(e.homeX,0,e.homeZ);e.x=e.homeX;e.z=e.homeZ;e.group.visible=true;e.cool=2;e.state='normal'; setEnemyBar(e)}continue}
+function updateEnemies(dt){if(cheatFlags.freeze)return;if(cheats.freeze)return;for(let e of enemies){if(!e.alive){e.respawn-=dt;if(e.respawn<=0){e.alive=true;e.hp=e.maxHp;e.group.position.set(e.homeX,0,e.homeZ);e.x=e.homeX;e.z=e.homeZ;e.group.visible=true;e.cool=2;e.state='normal'; setEnemyBar(e)}continue}
  let t=TYPES[e.type];e.stun=Math.max(0,e.stun-dt);e.cool-=dt;e.phase+=dt;
  let dx=state.x-e.group.position.x,dz=state.z-e.group.position.z,dist=Math.hypot(dx,dz);if(dist>105&&e.type!=='preside'&&e.type!=='vice')continue;
  if(e.type==='vice'){
@@ -1345,7 +1360,7 @@ let hudTick=0;function updateHUD(dt){hudTick-=dt;if(hudTick>0)return;hudTick=.12
 const clock=new THREE.Clock();
 function frame(){requestAnimationFrame(frame);let dt=Math.min(.045,clock.getDelta());visualTime+=dt;
  updateArchitectureRoofs(dt);
- if(!paused){state.time+=dt;state.shotCD=Math.max(0,state.shotCD-dt);state.invincible=Math.max(0,state.invincible-dt);
+ if(!paused){if(cheatFlags.aimbot&&gameMode!=='multi'){const e=cheatTarget();if(e){const dx=e.group.position.x-state.x,dz=e.group.position.z-state.z;state.yaw=-Math.atan2(dx,-dz);state.pitch=Math.atan2(e.group.position.y+1.6-state.y-1.42,Math.hypot(dx,dz))}}state.time+=dt;state.shotCD=Math.max(0,state.shotCD-dt);state.invincible=Math.max(0,state.invincible-dt);
   updateParkour(dt);updateCheatAimbot();updateCitizens(dt);updateCrates(dt);updateWorldGadgets(dt);if(shooting)fire();if(gameMode!=='multi')updateEnemies(dt);updateProjectiles(dt);updateCandies(dt);updateRegions();
   for(let p of [...particles]){p.t-=dt;p.vy-=(p.gravity??14)*dt;p.mesh.position.x+=p.vx*dt;p.mesh.position.y+=p.vy*dt;p.mesh.position.z+=p.vz*dt;p.mesh.scale.multiplyScalar(.99);if(p.t<=0){scene.remove(p.mesh);if(p.ownedGeometry)p.mesh.geometry.dispose();particles.splice(particles.indexOf(p),1)}}
   for(let it of interactables)if(it.type==='door'){it.angle=THREE.MathUtils.damp(it.angle,it.open?1.25:0,7,dt);it.group.rotation.y=it.angle}
@@ -1362,7 +1377,7 @@ for(let i=0;i<friends.length;i++){friends[i].saved=state.friendsHelped.includes(
 const escapeHTML=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function fullCandyReset(){for(const c of [...pickups]){scene.remove(c.mesh)}pickups.length=0;for(let i=0;i<candySpots.length;i++)createCandy(...candySpots[i],i);state.collected=[];state.candy=0;}
 function resetModePlayer(){state.x=0;state.z=27;state.y=0;state.vx=0;state.vz=0;state.vy=0;state.hp=100;state.st=100;state.invincible=0;state.books=[];state.weapon=0;state.shotCD=0;state.checkpoint={x:0,z:27};player.position.set(0,0,27);applyCharacterSkin();chooseWeapon(0)}
-function setMode(mode){gameMode=mode;cheats.fly=false;cheats.aimbot=false;cheats.freeze=false;roomFreeze=false;$('modeBanner').textContent=mode==='creative'?'✨ CREATIVA · INVINCIBILE · 24 ARMI':mode==='single'?'🎮 GIOCATORE SINGOLO · AVVENTURA':'📡 MULTIGIOCATORE LAN · CACCIA ALLE CARAMELLE';$('lobbyHud').style.display=mode==='multi'?'block':'none';for(const e of enemies)e.group.visible=mode!=='multi'&&e.alive;if(mode==='creative'){fullCandyReset();resetModePlayer();state.hp=100;toast('✨ 24 ARMI SBLOCCATE · ENERGIA INFINITA',3)}if(mode==='multi'){fullCandyReset();resetModePlayer()} }
+function setMode(mode){gameMode=mode;if(mode==='multi'&&!onlineHost)for(const k in cheatFlags)cheatFlags[k]=false;cheats.fly=false;cheats.aimbot=false;cheats.freeze=false;roomFreeze=false;$('modeBanner').textContent=mode==='creative'?'✨ CREATIVA · INVINCIBILE · 24 ARMI':mode==='single'?'🎮 GIOCATORE SINGOLO · AVVENTURA':'📡 MULTIGIOCATORE LAN · CACCIA ALLE CARAMELLE';$('lobbyHud').style.display=mode==='multi'?'block':'none';for(const e of enemies)e.group.visible=mode!=='multi'&&e.alive;if(mode==='creative'){fullCandyReset();resetModePlayer();state.hp=100;toast('✨ 24 ARMI SBLOCCATE · ENERGIA INFINITA',3)}if(mode==='multi'){fullCandyReset();resetModePlayer()} }
 function initModeMenu(){gameMode='menu';paused=true;playing=false;uiModal('🍬 CANDY CHAOS 3D',`<div class="menuBanner">SCHERMATA PRINCIPALE</div><p>24 armi con modelli 3D, comprese 💩 Spara Cacca, 🚀 RPG, 🎮 Lancia Joy-Con Switch e 🔫 AK-47 Cartoon! Mondo più vasto, bar e casinò arcade con stanze accessibili, 10 nuovi nemici, più caramelle, torri, multiplayer e skin.</p><div class="feature">🍬 Le caramelle raccolte e le vittorie fanno guadagnare crediti per le skin (100–300 🍬). Totale disponibile: <b style="font-size:22px;color:#ffe08b">${cosmeticState.candies}</b></div><div id="modeSelection"><button class="modeCard" id="playCard"><span class="bigicon">▶</span><b>GIOCA</b><small>Apri la schermata con tutte le modalità disponibili.</small></button><button class="modeCard" id="shopCard"><span class="bigicon">🛍️</span><b>SKIN E SHOP</b><small>Compra ed equipaggia skin per personaggio e armi usando le caramelle.</small></button><button class="modeCard" id="multiCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Gioca con amici anche senza Internet, sullo stesso Wi-Fi o hotspot. Stanze con codice a 6 cifre.</small></button></div>`,[], 'MENU PRINCIPALE');$('playCard').onclick=showPlayModes;$('shopCard').onclick=showSkinShop;$('multiCard').onclick=showMultiplayerMenu;}
 function showPlayModes(){uiModal('🎮 MODALITÀ DI GIOCO',`<div class="menuBanner">SCEGLI COME GIOCARE</div><div id="modeSelection"><button class="modeCard" id="creativeCard"><span class="bigicon">✨</span><b>CREATIVA</b><small>Tutte le armi subito disponibili. Non puoi perdere energia. Esplora e fai parkour. Premi X per il menu trucchi.</small></button><button class="modeCard" id="soloCard"><span class="bigicon">🎮</span><b>GIOCATORE SINGOLO</b><small>Avventura completa, libri con operazioni, boss e 20 finali.</small></button><button class="modeCard" id="partyCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Crea una stanza locale, invita amici e gioca anche senza Internet.</small></button></div>`,[{text:'⬅ TORNA',fn:initModeMenu,secondary:true}],'TUTTE LE MODALITÀ');$('creativeCard').onclick=()=>{setMode('creative');resume();toast('🌈 MODALITÀ CREATIVA!',2.5)};$('soloCard').onclick=()=>{setMode('single'); try{let saved=JSON.parse(localStorage.getItem('candy-chaos-ultimate-v2')||'null');if(saved&&Array.isArray(saved.books)){for(let k of Object.keys(saved))if(k in state)state[k]=saved[k];for(let c of [...pickups])if(state.collected.includes(c.id)){scene.remove(c.mesh);pickups.splice(pickups.indexOf(c),1)}}}catch(e){} chooseWeapon(state.weapon); start()}; $('partyCard').onclick=showMultiplayerMenu;}
 function backToModes(){if(network){try{sendNet({type:'leave'});network.close()}catch(e){}network=null;}onlineRoom=null;netReady=false;myPlayerId=null;onlineHost=false;for(const r of remotePlayers.values())scene.remove(r.group);remotePlayers.clear();$('lobbyHud').style.display='none';fullCandyReset();resetModePlayer();initModeMenu()}
