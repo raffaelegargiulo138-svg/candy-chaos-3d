@@ -5,9 +5,9 @@
  */
 'use strict';
 const http=require('node:http'),crypto=require('node:crypto'),os=require('node:os');
-const fs=require('node:fs'),path=require('node:path');
+const fs=require('node:fs'),path=require('node:path'),net=require('node:net');
 const PORT=Number(process.env.PORT||3000), HOST=process.env.HOST||'0.0.0.0';
-const MAX=12, MATCH_MS=8*60000;
+const MAX=12, MAX_ROOMS=32, MAX_SOCKETS=48, MATCH_MS=8*60000;
 const rooms=new Map(),sockets=new Set();
 const RATE=[220,90,850,550,390,380,70,1100,190,140,1350,800,3000,240,650,300,1200,480,180,1700];
 const POWER=[7,4,20,15,12,11,3,14,10,6,24,23,25,9,17,8,19,12,8,22];
@@ -47,11 +47,26 @@ function candyLocations(){
   return a;
 }
 const CANDIES=candyLocations();
+// Allow only private network and localhost clients, not public Internet visitors.
+function isTrustedLAN(ip){
+ ip=String(ip||'');if(ip.startsWith('::ffff:'))ip=ip.slice(7);
+ if(ip==='::1')return true;
+ if(net.isIP(ip)!==4)return false;
+ const [a,b]=ip.split('.').map(Number);
+ return a===127||a===10||(a===172&&b>=16&&b<=31)||(a===192&&b===168);
+}
+function isValidHost(host){
+ if(typeof host!=='string'||host.length>80)return false;
+ const m=/^(localhost|(?:[0-9]{1,3}\.){3}[0-9]{1,3}):([0-9]{1,5})$/i.exec(host);
+ if(!m||Number(m[2])!==PORT)return false;
+ const name=m[1].toLowerCase();
+ return name==='localhost'||name==='127.0.0.1'||lanIPs().includes(name);
+}
 function lanIPs(){
   const found=[];
   for(const [name,interfaces] of Object.entries(os.networkInterfaces()))
     for(const n of interfaces||[])
-      if(n.family==='IPv4'&&!n.internal&&!n.address.startsWith('169.254.'))found.push({ip:n.address,name});
+      if(n.family==='IPv4'&&!n.internal&&isTrustedLAN(n.address))found.push({ip:n.address,name});
   const score=(x)=>(/wi-?fi|wireless|wlan|ethernet|en0/i.test(x.name)?5:0)+(x.ip.startsWith('192.168.')?4:x.ip.startsWith('10.')?3:x.ip.startsWith('172.')?2:0);
   return [...new Set(found.sort((a,b)=>score(b)-score(a)).map(x=>x.ip))];
 }
@@ -74,7 +89,7 @@ function sixDigits(){for(let i=0;i<1500;i++){const s=String(crypto.randomInt(100
 function join(c,code,name,create){
   if(c.room)return send(c,{type:'error',message:'Hai già una stanza.'});
   let r;
-  if(create){code=sixDigits();r={code,host:null,stage:'lobby',taken:new Set(),players:new Map(),endAt:0};rooms.set(code,r)}
+  if(create){if(rooms.size>=MAX_ROOMS)return send(c,{type:'error',message:'Limite di stanze raggiunto.'});code=sixDigits();r={code,host:null,stage:'lobby',taken:new Set(),players:new Map(),endAt:0};rooms.set(code,r)}
   else {
     if(!/^\d{6}$/.test(String(code||'')))return send(c,{type:'error',message:'Il codice deve avere sei cifre.'});
     r=rooms.get(code);
@@ -183,12 +198,23 @@ function frames(c){
     if(opcode===8)return close(c);
     if(opcode===9){c.socket.write(Buffer.from([0x8a,0]));continue}
     if(opcode!==1)continue;
+    const now=Date.now();if(now-c.windowStarted>1000){c.windowStarted=now;c.rateCount=0}if(++c.rateCount>90)return close(c);
     try{message(c,JSON.parse(bytes.toString('utf8')))}catch(e){send(c,{type:'error',message:'Messaggio non valido'})}
   }
   c.buf=buf;
 }
 const server=http.createServer((req,res)=>{
-  let u;try{u=new URL(req.url,'http://localhost')}catch(e){res.writeHead(400);return res.end()}
+ if(!isTrustedLAN(req.socket.remoteAddress)||!isValidHost(req.headers.host)){
+   res.writeHead(403,{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'});
+   return res.end('Solo rete privata');
+ }
+ res.setHeader('X-Content-Type-Options','nosniff');
+ res.setHeader('X-Frame-Options','DENY');
+ res.setHeader('Referrer-Policy','no-referrer');
+ res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
+ res.setHeader('Cross-Origin-Resource-Policy','same-origin');
+ res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+ let u;try{u=new URL(req.url,'http://localhost')}catch(e){res.writeHead(400);return res.end()}
   if(u.pathname==='/health'){res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});return res.end(JSON.stringify({ok:true,players:sockets.size,rooms:rooms.size,candies:CANDIES.length}))}
   if(u.pathname==='/lan-info'){res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});return res.end(JSON.stringify({mode:'offline-lan',urls:urls(),port:PORT,maxPlayers:MAX,engineReady:true}))}
   if(u.pathname!=='/'&&u.pathname!=='/index.html'){res.writeHead(404);return res.end('Non trovato')}
@@ -199,12 +225,19 @@ const server=http.createServer((req,res)=>{
   });
 });
 server.on('upgrade',(req,socket)=>{
-  if(req.url!=='/ws')return socket.destroy();
+ const expectedOrigin='http://'+req.headers.host;
+ const origin=req.headers.origin;
+ if(req.url!=='/ws'||!isTrustedLAN(socket.remoteAddress)||!isValidHost(req.headers.host)||
+    (typeof origin==='string'&&origin!==expectedOrigin)||
+    sockets.size>=MAX_SOCKETS||req.headers['sec-websocket-version']!=='13'){
+   socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+   return socket.destroy();
+ }
   const key=req.headers['sec-websocket-key'];
   if(typeof key!=='string'||!/^[A-Za-z0-9+/]{22}==$/.test(key))return socket.destroy();
   const accept=crypto.createHash('sha1').update(key+'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
   socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: '+accept+'\r\n\r\n');
-  const c={socket,closed:false,buf:Buffer.alloc(0),room:null,id:null};
+  const c={socket,closed:false,buf:Buffer.alloc(0),room:null,id:null,windowStarted:Date.now(),rateCount:0};
   sockets.add(c);
   socket.on('data',chunk=>{if(c.closed)return;c.buf=Buffer.concat([c.buf,chunk]);if(c.buf.length>100000)return close(c);frames(c)});
   socket.on('close',()=>close(c));socket.on('error',()=>close(c));
