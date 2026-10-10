@@ -43,7 +43,7 @@ body.ads #aimStatus{display:block}#aimRange{font-weight:450;letter-spacing:.02em
 <div id="mission" class="glass"><h2>🎯 MISSIONE APERTA</h2><p id="missionText">Esplora il quartiere, entra nelle classi, risolvi le operazioni dei libri per sbloccare nuovi poteri. Puoi scegliere 20 finali diversi!</p></div>
 <canvas id="minimap" width="340" height="340"></canvas>
 <div id="weapon" class="glass"><strong id="weaponTitle">🧸 Orsetti gommosi</strong><span id="weaponInfo">Q/rotella cambia · click destro mira · click sinistro usa</span></div>
-<div id="controls" class="glass"><kbd>WASD</kbd> muovi · <kbd>Mouse</kbd> visuale · <kbd>Shift</kbd> sprint / corsa sul muro · <kbd>Spazio</kbd> doppio salto · <kbd>Ctrl</kbd> scivolata · <kbd>V</kbd> scavalca · <kbd>F</kbd> rampino · <kbd>R</kbd> scatto · <kbd>E</kbd> interagisci · <kbd>B</kbd> armi · <kbd>J</kbd> 20 finali · <kbd>M</kbd> mappa · <kbd>G</kbd> cambia mira · <kbd>P</kbd> qualità</div>
+<div id="controls" class="glass"><kbd>WASD</kbd> muovi · <kbd>Mouse</kbd> visuale · <kbd>Shift</kbd> sprint / corsa sul muro · <kbd>Spazio</kbd> doppio salto · <kbd>Ctrl</kbd> scivolata · <kbd>V</kbd> scavalca · <kbd>F</kbd> rampino · <kbd>R</kbd> scatto · <kbd>E</kbd> interagisci · <kbd>B</kbd> armi · <kbd>X</kbd> TRUCCHI · <kbd>J</kbd> 20 finali · <kbd>M</kbd> mappa · <kbd>G</kbd> cambia mira · <kbd>P</kbd> qualità</div>
 <div id="cross">✦</div><div id="context"></div><div id="toast"></div><div id="areaPopup"></div>
 <div id="modal"><div id="panel" class="glass"><div id="modalContent"><div class="eyebrow">AVVIO DEL GIOCO</div><h1>🍬 CANDY CHAOS 3D</h1><p>Caricamento della città, delle armi e dei personaggi in corso...</p><div class="feature">La schermata delle modalità apparirà automaticamente.</div></div><div class="actions" id="modalActions"><button class="btn secondary" disabled>⌛ CARICAMENTO...</button></div></div></div>
 <script>
@@ -1056,7 +1056,7 @@ const NPC_PROFILES=[
 const npcActors=[];
 function makeCitizen(profile,i){const [name,role,emoji,speech,x,z]=profile;const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);const hue=(i*.112)%1;const fabric=new THREE.Color().setHSL(hue,.42,.45);const m=mat(fabric);box(g,0,1.15,0,.65,.9,.44,m);ball(g,0,1.85,0,.33,mat(i%3?'#d8a784':'#9d6e55'));ball(g,0,2.12,.04,.34,mat(i%2?'#604537':'#38343e')).scale.y=.3;for(let side of [-1,1]){box(g,side*.2,.43,0,.22,.83,.24,M.metal);box(g,side*.43,1.22,0,.15,.68,.20,m)}const bubble=label(emoji+' '+name,'#eafff9',.35);bubble.position.set(0,2.88,0);g.add(bubble);const n={name,role,emoji,speech,x,z,group:g,homeX:x,homeZ:z,index:i,t:0};npcActors.push(n);interactables.push({type:'citizen',x,z,name:'parlare con '+name+' ('+role+')',citizen:n});return n;}
 NPC_PROFILES.forEach(makeCitizen);
-function updateCitizens(dt){for(const n of npcActors){n.t+=dt;const an=n.t*.3+n.index*.8;const xx=n.homeX+Math.sin(an)*.55,zz=n.homeZ+Math.cos(an)*.55;n.group.position.x=xx;n.group.position.z=zz;n.group.rotation.y=Math.sin(an)*.3;}}
+function updateCitizens(dt){if(cheats.freeze)return;for(const n of npcActors){n.t+=dt;const an=n.t*.3+n.index*.8;const xx=n.homeX+Math.sin(an)*.55,zz=n.homeZ+Math.cos(an)*.55;n.group.position.x=xx;n.group.position.z=zz;n.group.rotation.y=Math.sin(an)*.3;}}
 // Adventure missions and endings: every line is an achievable alternate ending, not placeholder lore.
 const endings=[
  {id:1,title:'La montagna di caramelle',emoji:'🍬',need:'Raccogli tutte le caramelle del mondo',ok:()=>state.candy>=TOTAL_CANDY,story:'Hai riempito uno zaino immenso di dolci. Il quartiere proclama la Festa dello Zucchero!'},
@@ -1152,6 +1152,10 @@ function tryVault(){if(paused||state.st<9)return;const f={x:-Math.sin(state.yaw)
 window.addEventListener('keydown',e=>{
  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keyDown[e.code]=true;
  if(e.repeat)return;
+ if(e.code==='KeyX' && ['single','creative','multi'].includes(gameMode)){
+  if(currentModal==='TRUCCHI')resume();else cheatMenu();
+  return;
+ }
  if(paused){if(e.code==='Escape'&&currentModal!=='intro')resume();return}
  if(e.code==='Space')startJump();
  else if(e.code==='KeyR')startDash();
@@ -1175,7 +1179,26 @@ window.addEventListener('mouseup',e=>{if(e.button===0)shooting=false;if(e.button
 window.addEventListener('wheel',e=>{if(!paused){e.preventDefault();switchWeapon()}},{passive:false});
 document.addEventListener('mousemove',e=>{if(document.pointerLockElement!==renderer.domElement||paused)return;state.yaw-=e.movementX*.00255;state.pitch=clamp(state.pitch-e.movementY*.002,-.43,.83)});
 function obstructs(nx,nz,py,ignoreHeight=false){if(Math.abs(nx)>119||Math.abs(nz)>119)return {x:nx,z:nz,w:99,d:99,top:100};for(let b of solids){if(overlapRect(nx,nz,b,.40)&&(ignoreHeight||py<b.top-.22&&py+1.3>b.bottom+.1))return b}return null}
-function updateParkour(dt){let moving=false;let forwardX=-Math.sin(state.yaw),forwardZ=-Math.cos(state.yaw),rightX=Math.cos(state.yaw),rightZ=-Math.sin(state.yaw);let ix=0,iz=0;
+function updateParkour(dt){
+ if(gameMode==='multi'&&roomFreeze&&!onlineHost){state.vx=state.vz=state.vy=0;player.position.set(state.x,state.y,state.z);return;}
+ if(cheats.fly && cheatPermission()){
+  const frontX=-Math.sin(state.yaw),frontZ=-Math.cos(state.yaw),rightX=Math.cos(state.yaw),rightZ=-Math.sin(state.yaw);
+  let dx=0,dz=0,dy=0;
+  if(keyDown.KeyW||keyDown.ArrowUp){dx+=frontX;dz+=frontZ}
+  if(keyDown.KeyS||keyDown.ArrowDown){dx-=frontX;dz-=frontZ}
+  if(keyDown.KeyD){dx+=rightX;dz+=rightZ}
+  if(keyDown.KeyA){dx-=rightX;dz-=rightZ}
+  if(keyDown.Space)dy+=1;
+  if(keyDown.ControlLeft||keyDown.ControlRight)dy-=1;
+  let norm=Math.hypot(dx,dz)||1,velocity=keyDown.ShiftLeft?22:14;
+  state.x=clamp(state.x+dx/norm*velocity*dt,-118,118);
+  state.z=clamp(state.z+dz/norm*velocity*dt,-118,118);
+  state.y=clamp(state.y+dy*velocity*dt,0,43);
+  state.vx=state.vz=state.vy=0;
+  player.position.set(state.x,state.y,state.z);player.rotation.y=state.yaw;
+  return;
+ }
+ let moving=false;let forwardX=-Math.sin(state.yaw),forwardZ=-Math.cos(state.yaw),rightX=Math.cos(state.yaw),rightZ=-Math.sin(state.yaw);let ix=0,iz=0;
  if(keyDown.KeyW||keyDown.ArrowUp){ix+=forwardX;iz+=forwardZ}
  if(keyDown.KeyS||keyDown.ArrowDown){ix-=forwardX;iz-=forwardZ}
  if(keyDown.KeyA){ix-=rightX;iz-=rightZ}
@@ -1217,7 +1240,7 @@ function hitEnemy(e,power,index=state.weapon){if(!e.alive||e.state==='undergroun
  else if(e.type==='bullo'){state.bullyDefeated=true;toast('🎨 IL BULLO CAMBIA IDEA!',3)}
  else toast('✨ +1 AVVERSARIO CONFUSO!',1.5);
  safeSave()}}
-function fire(){if(state.shotCD>0||paused)return;window.__candyLastFiredWeapon=state.weapon;window.__candyShotCount=(window.__candyShotCount||0)+1;const w=weapons[state.weapon];state.shotCD=w.rate;state.attacks++;fxMuzzle(state.weapon);if(gameMode==='multi'&&netReady)sendNet({type:'fire',weapon:state.weapon});
+function fire(){if(state.shotCD>0||paused)return;if(gameMode==='multi'&&roomFreeze&&!onlineHost)return;if(cheats.aimbot)updateCheatAimbot();if(gameMode==='multi'&&netReady&&cheats.aimbot&&onlineHost)sendNet({type:'move',x:state.x,y:state.y,z:state.z,yaw:state.yaw,pitch:state.pitch,weapon:state.weapon});window.__candyLastFiredWeapon=state.weapon;window.__candyShotCount=(window.__candyShotCount||0)+1;const w=weapons[state.weapon];state.shotCD=w.rate;state.attacks++;fxMuzzle(state.weapon);if(gameMode==='multi'&&netReady)sendNet({type:'fire',weapon:state.weapon});
  if(w.kind==='melee'||w.kind==='nova'){let radius=w.kind==='nova'?10:4.2;let dir=shotDirection();const pos=new THREE.Vector3(state.x,state.y+1.5,state.z);fxBurst(pos,state.weapon,w.kind==='nova'?42:18,w.kind==='nova'?13:6);fxRing(pos,state.weapon,w.kind==='nova'?3.1:1.2);for(let e of enemies){if(!e.alive||e.state==='underground')continue;let d=e.group.position.clone().sub(player.position),dist=d.length();if(dist<radius&&(w.kind==='nova'||d.normalize().dot(dir)>.1))hitEnemy(e,w.power,state.weapon)}return}
  let dir=shotDirection();const right=new THREE.Vector3(Math.cos(state.yaw),0,-Math.sin(state.yaw));const origin=new THREE.Vector3(state.x,state.y+1.42,state.z).addScaledVector(dir,.92).addScaledVector(right,.34);
  if(aiming){const target=camera.position.clone().addScaledVector(dir,60);dir=target.sub(origin).normalize()}
@@ -1247,7 +1270,7 @@ function attackEnemy(e){let t=TYPES[e.type],origin=e.group.position.clone().add(
  if(e.type==='dottore'){for(let k=0;k<4;k++)spawnShot(origin,target,e.type,.37);return}
  if(e.type==='pasticcere'){for(let k=0;k<4;k++)spawnShot(origin,target,e.type,.31);puff(origin.x,1.2,origin.z,0xe1dfff,7,4);return}
  spawnShot(origin,target,e.type)}
-function updateEnemies(dt){for(let e of enemies){if(!e.alive){e.respawn-=dt;if(e.respawn<=0){e.alive=true;e.hp=e.maxHp;e.group.position.set(e.homeX,0,e.homeZ);e.x=e.homeX;e.z=e.homeZ;e.group.visible=true;e.cool=2;e.state='normal'; setEnemyBar(e)}continue}
+function updateEnemies(dt){if(cheats.freeze)return;for(let e of enemies){if(!e.alive){e.respawn-=dt;if(e.respawn<=0){e.alive=true;e.hp=e.maxHp;e.group.position.set(e.homeX,0,e.homeZ);e.x=e.homeX;e.z=e.homeZ;e.group.visible=true;e.cool=2;e.state='normal'; setEnemyBar(e)}continue}
  let t=TYPES[e.type];e.stun=Math.max(0,e.stun-dt);e.cool-=dt;e.phase+=dt;
  let dx=state.x-e.group.position.x,dz=state.z-e.group.position.z,dist=Math.hypot(dx,dz);if(dist>105&&e.type!=='preside'&&e.type!=='vice')continue;
  if(e.type==='vice'){
@@ -1273,7 +1296,7 @@ function updateEnemies(dt){for(let e of enemies){if(!e.alive){e.respawn-=dt;if(e
  }}
 function explode(obj,projectile){if(projectile.exploded)return;projectile.exploded=true;const pos=obj.position.clone();if(projectile.team==='player')fxImpact(pos,projectile.index,false);else puff(pos.x,pos.y,pos.z,projectile.color,15,6);
  if(projectile.kind==='boom'&&projectile.team==='player')for(let e of enemies)if(e.alive&&e.group.position.distanceTo(pos)<(projectile.index===21?8.5:5.2))hitEnemy(e,projectile.power*(projectile.index===21?.95:.75),projectile.index)}
-function updateProjectiles(dt){for(let p of [...projectiles]){p.life-=dt;p.mesh.position.addScaledVector(p.direction,p.speed*dt);if(p.team==='player'){p.trail-=dt;if(p.trail<=0){p.trail=.07+(p.index%4)*.018;let q=p.mesh.position;fxParticle(q.x,q.y,q.z,FX_PALETTE[p.index][1],p.index===10?.12:.045,2,3,.25);}}if(p.team==='player'&&p.kind==='boom'){p.vy=(p.vy||0)-dt*5.3;p.mesh.position.y+=p.vy*dt;}p.mesh.rotation.x+=dt*12;let impact=false;
+function updateProjectiles(dt){for(let p of [...projectiles]){if(cheats.freeze&&p.team==='enemy')continue;p.life-=dt;p.mesh.position.addScaledVector(p.direction,p.speed*dt);if(p.team==='player'){p.trail-=dt;if(p.trail<=0){p.trail=.07+(p.index%4)*.018;let q=p.mesh.position;fxParticle(q.x,q.y,q.z,FX_PALETTE[p.index][1],p.index===10?.12:.045,2,3,.25);}}if(p.team==='player'&&p.kind==='boom'){p.vy=(p.vy||0)-dt*5.3;p.mesh.position.y+=p.vy*dt;}p.mesh.rotation.x+=dt*12;let impact=false;
  if(p.team==='player'){for(let e of enemies){if(!e.alive||e.state==='underground')continue;
     const pos=e.group.position.clone().add(new THREE.Vector3(0,1.35,0));if(p.mesh.position.distanceTo(pos)<(e.type==='preside'?1.35:.94)){if(p.kind==='boom')explode(p.mesh,p);hitEnemy(e,p.power,p.index);impact=true;break}}}
  else if(p.mesh.position.distanceTo(new THREE.Vector3(state.x,state.y+1.2,state.z))<.94){damagePlayer(p.power);impact=true}
@@ -1323,7 +1346,7 @@ const clock=new THREE.Clock();
 function frame(){requestAnimationFrame(frame);let dt=Math.min(.045,clock.getDelta());visualTime+=dt;
  updateArchitectureRoofs(dt);
  if(!paused){state.time+=dt;state.shotCD=Math.max(0,state.shotCD-dt);state.invincible=Math.max(0,state.invincible-dt);
-  updateParkour(dt);updateCitizens(dt);updateCrates(dt);updateWorldGadgets(dt);if(shooting)fire();if(gameMode!=='multi')updateEnemies(dt);updateProjectiles(dt);updateCandies(dt);updateRegions();
+  updateParkour(dt);updateCheatAimbot();updateCitizens(dt);updateCrates(dt);updateWorldGadgets(dt);if(shooting)fire();if(gameMode!=='multi')updateEnemies(dt);updateProjectiles(dt);updateCandies(dt);updateRegions();
   for(let p of [...particles]){p.t-=dt;p.vy-=(p.gravity??14)*dt;p.mesh.position.x+=p.vx*dt;p.mesh.position.y+=p.vy*dt;p.mesh.position.z+=p.vz*dt;p.mesh.scale.multiplyScalar(.99);if(p.t<=0){scene.remove(p.mesh);if(p.ownedGeometry)p.mesh.geometry.dispose();particles.splice(particles.indexOf(p),1)}}
   for(let it of interactables)if(it.type==='door'){it.angle=THREE.MathUtils.damp(it.angle,it.open?1.25:0,7,dt);it.group.rotation.y=it.angle}
   saveTick+=dt;if(saveTick>16){safeSave();saveTick=0}netTick+=dt;if(gameMode==='multi'&&netReady&&netTick>.11){netTick=0;sendNet({type:'move',x:state.x,y:state.y,z:state.z,yaw:state.yaw,pitch:state.pitch,weapon:state.weapon})}
@@ -1339,9 +1362,9 @@ for(let i=0;i<friends.length;i++){friends[i].saved=state.friendsHelped.includes(
 const escapeHTML=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function fullCandyReset(){for(const c of [...pickups]){scene.remove(c.mesh)}pickups.length=0;for(let i=0;i<candySpots.length;i++)createCandy(...candySpots[i],i);state.collected=[];state.candy=0;}
 function resetModePlayer(){state.x=0;state.z=27;state.y=0;state.vx=0;state.vz=0;state.vy=0;state.hp=100;state.st=100;state.invincible=0;state.books=[];state.weapon=0;state.shotCD=0;state.checkpoint={x:0,z:27};player.position.set(0,0,27);applyCharacterSkin();chooseWeapon(0)}
-function setMode(mode){gameMode=mode;$('modeBanner').textContent=mode==='creative'?'✨ CREATIVA · INVINCIBILE · 24 ARMI':mode==='single'?'🎮 GIOCATORE SINGOLO · AVVENTURA':'📡 MULTIGIOCATORE LAN · CACCIA ALLE CARAMELLE';$('lobbyHud').style.display=mode==='multi'?'block':'none';for(const e of enemies)e.group.visible=mode!=='multi'&&e.alive;if(mode==='creative'){fullCandyReset();resetModePlayer();state.hp=100;toast('✨ 24 ARMI SBLOCCATE · ENERGIA INFINITA',3)}if(mode==='multi'){fullCandyReset();resetModePlayer()} }
+function setMode(mode){gameMode=mode;cheats.fly=false;cheats.aimbot=false;cheats.freeze=false;roomFreeze=false;$('modeBanner').textContent=mode==='creative'?'✨ CREATIVA · INVINCIBILE · 24 ARMI':mode==='single'?'🎮 GIOCATORE SINGOLO · AVVENTURA':'📡 MULTIGIOCATORE LAN · CACCIA ALLE CARAMELLE';$('lobbyHud').style.display=mode==='multi'?'block':'none';for(const e of enemies)e.group.visible=mode!=='multi'&&e.alive;if(mode==='creative'){fullCandyReset();resetModePlayer();state.hp=100;toast('✨ 24 ARMI SBLOCCATE · ENERGIA INFINITA',3)}if(mode==='multi'){fullCandyReset();resetModePlayer()} }
 function initModeMenu(){gameMode='menu';paused=true;playing=false;uiModal('🍬 CANDY CHAOS 3D',`<div class="menuBanner">SCHERMATA PRINCIPALE</div><p>24 armi con modelli 3D, comprese 💩 Spara Cacca, 🚀 RPG, 🎮 Lancia Joy-Con Switch e 🔫 AK-47 Cartoon! Mondo più vasto, bar e casinò arcade con stanze accessibili, 10 nuovi nemici, più caramelle, torri, multiplayer e skin.</p><div class="feature">🍬 Le caramelle raccolte e le vittorie fanno guadagnare crediti per le skin (100–300 🍬). Totale disponibile: <b style="font-size:22px;color:#ffe08b">${cosmeticState.candies}</b></div><div id="modeSelection"><button class="modeCard" id="playCard"><span class="bigicon">▶</span><b>GIOCA</b><small>Apri la schermata con tutte le modalità disponibili.</small></button><button class="modeCard" id="shopCard"><span class="bigicon">🛍️</span><b>SKIN E SHOP</b><small>Compra ed equipaggia skin per personaggio e armi usando le caramelle.</small></button><button class="modeCard" id="multiCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Gioca con amici anche senza Internet, sullo stesso Wi-Fi o hotspot. Stanze con codice a 6 cifre.</small></button></div>`,[], 'MENU PRINCIPALE');$('playCard').onclick=showPlayModes;$('shopCard').onclick=showSkinShop;$('multiCard').onclick=showMultiplayerMenu;}
-function showPlayModes(){uiModal('🎮 MODALITÀ DI GIOCO',`<div class="menuBanner">SCEGLI COME GIOCARE</div><div id="modeSelection"><button class="modeCard" id="creativeCard"><span class="bigicon">✨</span><b>CREATIVA</b><small>Tutte le armi subito disponibili. Non puoi perdere energia. Esplora e fai parkour.</small></button><button class="modeCard" id="soloCard"><span class="bigicon">🎮</span><b>GIOCATORE SINGOLO</b><small>Avventura completa, libri con operazioni, boss e 20 finali.</small></button><button class="modeCard" id="partyCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Crea una stanza locale, invita amici e gioca anche senza Internet.</small></button></div>`,[{text:'⬅ TORNA',fn:initModeMenu,secondary:true}],'TUTTE LE MODALITÀ');$('creativeCard').onclick=()=>{setMode('creative');resume();toast('🌈 MODALITÀ CREATIVA!',2.5)};$('soloCard').onclick=()=>{setMode('single'); try{let saved=JSON.parse(localStorage.getItem('candy-chaos-ultimate-v2')||'null');if(saved&&Array.isArray(saved.books)){for(let k of Object.keys(saved))if(k in state)state[k]=saved[k];for(let c of [...pickups])if(state.collected.includes(c.id)){scene.remove(c.mesh);pickups.splice(pickups.indexOf(c),1)}}}catch(e){} chooseWeapon(state.weapon); start()}; $('partyCard').onclick=showMultiplayerMenu;}
+function showPlayModes(){uiModal('🎮 MODALITÀ DI GIOCO',`<div class="menuBanner">SCEGLI COME GIOCARE</div><div id="modeSelection"><button class="modeCard" id="creativeCard"><span class="bigicon">✨</span><b>CREATIVA</b><small>Tutte le armi subito disponibili. Non puoi perdere energia. Esplora e fai parkour. Premi X per il menu trucchi.</small></button><button class="modeCard" id="soloCard"><span class="bigicon">🎮</span><b>GIOCATORE SINGOLO</b><small>Avventura completa, libri con operazioni, boss e 20 finali.</small></button><button class="modeCard" id="partyCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Crea una stanza locale, invita amici e gioca anche senza Internet.</small></button></div>`,[{text:'⬅ TORNA',fn:initModeMenu,secondary:true}],'TUTTE LE MODALITÀ');$('creativeCard').onclick=()=>{setMode('creative');resume();toast('🌈 MODALITÀ CREATIVA!',2.5)};$('soloCard').onclick=()=>{setMode('single'); try{let saved=JSON.parse(localStorage.getItem('candy-chaos-ultimate-v2')||'null');if(saved&&Array.isArray(saved.books)){for(let k of Object.keys(saved))if(k in state)state[k]=saved[k];for(let c of [...pickups])if(state.collected.includes(c.id)){scene.remove(c.mesh);pickups.splice(pickups.indexOf(c),1)}}}catch(e){} chooseWeapon(state.weapon); start()}; $('partyCard').onclick=showMultiplayerMenu;}
 function backToModes(){if(network){try{sendNet({type:'leave'});network.close()}catch(e){}network=null;}onlineRoom=null;netReady=false;myPlayerId=null;onlineHost=false;for(const r of remotePlayers.values())scene.remove(r.group);remotePlayers.clear();$('lobbyHud').style.display='none';fullCandyReset();resetModePlayer();initModeMenu()}
 let localLanLinks=[];
 async function refreshLanLinks(){
@@ -1406,8 +1429,9 @@ function handleNet(msg){if(msg.type==='error'){connectionError(msg.message||'Err
  if(msg.type==='joined'){onlineRoom=msg.code;myPlayerId=msg.id;serverClockOffset=0;setMode('multi');showLobby();return}
  if(msg.type==='state'){if(!onlineRoom)return;lobbyPlayers=msg.players||[];serverClockOffset=(msg.now||Date.now())-Date.now();let local=lobbyPlayers.find(v=>v.id===myPlayerId);if(local){onlineHost=local.host;state.candy=local.candy;state.hp=local.hp;}
  for(let p of lobbyPlayers)if(p.id!==myPlayerId)renderRemotePlayer(p);for(let [id,r] of [...remotePlayers])if(!lobbyPlayers.some(p=>p.id===id)){scene.remove(r.group);remotePlayers.delete(id)}
- if(msg.stage==='lobby'&&currentModal==='SALA D’ATTESA')showLobby();if(msg.stage==='game')netReady=true;for(let id of msg.taken||[])removeCandyNetwork(id);roundEndAt=msg.endAt||0;return}
- if(msg.type==='matchStart'){multiplayerRewardGranted=false;setMode('multi');roundEndAt=msg.endAt;netReady=true;for(let id of msg.taken||[])removeCandyNetwork(id);state.candy=0;state.hp=100;state.x=0;state.y=0;state.z=27;state.invincible=0;resume();toast('🏁 GARA INIZIATA! 8 MINUTI: PRENDI PIÙ CARAMELLE!',5);return}
+ if(msg.stage==='lobby'&&currentModal==='SALA D’ATTESA')showLobby();roomFreeze=!!msg.cheats?.freeze;if(msg.stage==='game')netReady=true;for(let id of msg.taken||[])removeCandyNetwork(id);roundEndAt=msg.endAt||0;return}
+ if(msg.type==='matchStart'){roomFreeze=false;multiplayerRewardGranted=false;setMode('multi');roundEndAt=msg.endAt;netReady=true;for(let id of msg.taken||[])removeCandyNetwork(id);state.candy=0;state.hp=100;state.x=0;state.y=0;state.z=27;state.invincible=0;resume();toast('🏁 GARA INIZIATA! 8 MINUTI: PRENDI PIÙ CARAMELLE!',5);return}
+ if(msg.type==='cheatState'){roomFreeze=!!msg.freeze;if(currentModal==='TRUCCHI')cheatMenu();toast('🧊 FREEZE '+(roomFreeze?'ATTIVO':'DISATTIVATO'),2);return}
  if(msg.type==='quizPenalty'){state.candy=Number(msg.candy)||0;toast('❌ ERRORE: -1 CARAMELLA! Ora ne hai '+state.candy,2);return}
  if(msg.type==='pickup'){removeCandyNetwork(msg.id);if(msg.by===myPlayerId){state.candy=msg.candy;puff(state.x,1.2,state.z,0xffdd79,6);toast('🍬 +1! Hai '+msg.candy+' caramelle',1)}return}
  if(msg.type==='playerShot'){if(msg.id!==myPlayerId){let r=remotePlayers.get(msg.id);if(r)puff(r.group.position.x,1.3,r.group.position.z,weapons[msg.weapon]?.color||0xffeeaa,3,3)}return}
@@ -1417,9 +1441,91 @@ function handleNet(msg){if(msg.type==='error'){connectionError(msg.message||'Err
  if(msg.type==='notice'){toast(msg.message,3);return}
  if(msg.type==='matchEnd'){netReady=false;shooting=false;let standings=msg.winners||[];let top=standings[0];if(!multiplayerRewardGranted){multiplayerRewardGranted=true;const me=standings.find(p=>p.id===myPlayerId);if(me)addCosmeticCandies(Math.min(250,Math.max(0,me.candy)*5)+(top&&top.id===myPlayerId?40:0));}uiModal('🏆 PARTITA TERMINATA',`<h2>🥇 ${top?escapeHTML(top.name):'Nessuno'} VINCE!</h2><p>La gara di caramelle è finita. Classifica finale:</p>${standings.map((p,i)=>`<div class="lobbyRow"><b>${i+1}. ${escapeHTML(p.name)}</b>🍬 ${p.candy}</div>`).join('')}`, [{text:'🏠 TORNA AL MENÙ',fn:backToModes},{text:'👥 VEDI STANZA',fn:showLobby,secondary:true}],'CLASSIFICA FINALE');return}
 }
+
+// X → TRUCCHI MENU. Single/creative: freely available. Multiplayer: host only.
+const cheats={fly:false,aimbot:false,freeze:false};
+let roomFreeze=false;
+window.__candyCheats=cheats;
+function cheatPermission(){return gameMode!=='multi'||(onlineHost&&!!onlineRoom)}
+function cheatMenu(){
+ if(!['single','creative','multi'].includes(gameMode))return;
+ const host=cheatPermission(),frozen=gameMode==='multi'?roomFreeze:cheats.freeze;
+ const status=v=>v?'🟢 ON':'⚪ OFF';
+ const disabled=host?'':' disabled';
+ uiModal('🎮 MENU TRUCCHI · X',\`
+   <p>Premi <b>X</b> per chiudere. I trucchi funzionano in modalità Singolo e Creativa.</p>
+   \${gameMode==='multi'?'<div class="feature">📡 MULTIPLAYER: solo il <b>creatore della stanza</b> può attivarli. Freeze e KILL ALL si applicano alla stanza tramite il server, con avviso per tutti.</div>':''}
+   <div class="tiles">
+    <div class="tile"><b>🪽 FLY · \${status(cheats.fly)}</b><span>Vola con SPAZIO per salire e CTRL per scendere, WASD per spostarti.</span><button class="btn cheatToggle" data-cheat="fly"\${disabled}>🪽 \${cheats.fly?'DISATTIVA':'ATTIVA'} FLY</button></div>
+    <div class="tile"><b>🎯 AIMBOT · \${status(cheats.aimbot)}</b><span>La mira punta automaticamente verso il nemico più vicino.</span><button class="btn cheatToggle" data-cheat="aimbot"\${disabled}>🎯 \${cheats.aimbot?'DISATTIVA':'ATTIVA'} AIMBOT</button></div>
+    <div class="tile"><b>🧊 FREEZE · \${status(frozen)}</b><span>Blocca i nemici; in multiplayer ferma gli avversari finché non lo disattivi.</span><button class="btn cheatToggle" data-cheat="freeze"\${disabled}>🧊 \${frozen?'SBLOCCA':'BLOCCA'} NEMICI</button></div>
+    <div class="tile"><b>💥 KILL ALL</b><span>Mette KO tutti i nemici presenti. In multiplayer li rimanda allo spawn.</span><button class="btn cheatToggle" data-cheat="killall"\${disabled}>💥 KO DI TUTTI</button></div>
+   </div>\`,
+  [{text:'▶ TORNA A GIOCARE',fn:resume}], 'TRUCCHI');
+ document.querySelectorAll('.cheatToggle').forEach(b=>b.addEventListener('click',()=>applyCheat(b.dataset.cheat)));
+}
+function applyCheat(action){
+ if(!cheatPermission()){toast('⛔ Solo il creatore può attivare trucchi in multiplayer',2);cheatMenu();return}
+ if(action==='freeze'){
+   if(gameMode==='multi'){
+     if(!netReady){toast('⏳ Avvia prima la partita multiplayer',2);return}
+     sendNet({type:'hostCheat',action:'freeze',enabled:!roomFreeze});
+     roomFreeze=!roomFreeze; // fast UI response; next server state remains authoritative
+   }else cheats.freeze=!cheats.freeze;
+   cheatMenu();return;
+ }
+ if(action==='killall'){
+   if(gameMode==='multi'){
+     if(!netReady){toast('⏳ Avvia prima la partita multiplayer',2);return}
+     sendNet({type:'hostCheat',action:'killall'});
+     toast('💥 KILL ALL inviato al server',1.5);
+   }else{
+     let count=0;
+     for(const e of enemies){
+       if(!e.alive)continue;
+       count++;e.alive=false;e.hp=0;e.group.visible=false;
+       e.respawn=38;
+       state.enemyDefeats[e.type]=(state.enemyDefeats[e.type]||0)+1;
+       if(e.type==='preside')state.bossDefeated=true;
+       if(e.type==='vice')state.viceDefeated=true;
+       if(e.type==='bullo')state.bullyDefeated=true;
+       setEnemyBar(e);
+     }
+     toast('💥 KILL ALL! '+count+' avversari KO!',3);safeSave();
+   }
+   cheatMenu();return;
+ }
+ if(action==='fly'||action==='aimbot'){
+   cheats[action]=!cheats[action];
+   if(action==='fly'){state.vy=0;state.airJumps=0}
+   cheatMenu();return;
+ }
+}
+function updateCheatAimbot(){
+ if(!cheats.aimbot||!cheatPermission())return;
+ const available=[];
+ if(gameMode==='multi'){
+   if(!netReady)return;
+   for(const r of remotePlayers.values())available.push({x:r.group.position.x,y:r.group.position.y+1.48,z:r.group.position.z});
+ }else for(const e of enemies){
+   if(e.alive&&e.state!=='underground')available.push({x:e.group.position.x,y:e.group.position.y+1.42,z:e.group.position.z});
+ }
+ let best=null,dist=70;
+ for(const p of available){
+   const d=Math.hypot(p.x-state.x,p.z-state.z,p.y-state.y-1.5);
+   if(d<dist){best=p;dist=d}
+ }
+ if(!best)return;
+ const dx=best.x-state.x,dy=best.y-state.y-1.46,dz=best.z-state.z;
+ state.yaw=Math.atan2(-dx,-dz);
+ state.pitch=clamp(Math.atan2(dy,Math.hypot(dx,dz)),-.43,.83);
+ player.rotation.y=state.yaw;
+}
+
 function showNetworkPause(){if(gameMode==='multi'){uiModal('⏸ Pausa online',`<p>La gara continua anche mentre questo menu è aperto. Puoi tornare alla partita oppure lasciare la stanza.</p><div class="feature">Stanza <b>${onlineRoom}</b> · Nella gara online le caramelle sono condivise e puoi recuperare quelle di un altro giocatore mettendolo fuori gioco.</div>`,[{text:'▶ RIPRENDI',fn:resume},{text:'👥 CLASSIFICA E CODICE',fn:()=>{showLobby()}},{text:'🏠 ESCI DALLA STANZA',fn:backToModes,secondary:true}],'PAUSA ONLINE');return}showPause()}
 $('lobbyButton').addEventListener('click',showNetworkPause);
 
+window.__candyCheatFeature={hotkey:'X',modes:['single','creative','multi'],list:['fly','aimbot','freeze','killall'],hostOnlyMultiplayer:true};
 window.__candyArchitectureStats={count:architectureBuildings.length,details:architectureBuildings,totalDetails:architectureBuildings.reduce((a,b)=>a+b.details,0),totalProps:architectureBuildings.reduce((a,b)=>a+b.roomProps,0),fadingRoofs:true};
 window.__candyMapStats={candyCount:TOTAL_CANDY,buildingCount:townBuildings.length,enemyTypes:Object.keys(TYPES).length,extraEnemies:cityEnemySpawns.length,entrances:townBuildings.map(b=>{const xx=b.face==='east'?b.x+b.w/2-.2:b.face==='west'?b.x-b.w/2+.2:b.x;const zz=b.face==='north'?b.z-b.d/2+.2:b.face==='south'?b.z+b.d/2-.2:b.z;const hit=obstructs(xx,zz,0);return {name:b.name,open:!hit,blocker:hit?{x:hit.x,z:hit.z,w:hit.w,d:hit.d,top:hit.top}:null};}),roomDoorOpen:townBuildings.map(b=>({name:b.name,open:!obstructs(b.x,b.z-b.d*.08,0)}))};
 window.__candyBoot=true;
