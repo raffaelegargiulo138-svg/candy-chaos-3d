@@ -87,8 +87,8 @@ scene.fog = new THREE.FogExp2(0x9ec6e1, .0048);
 const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, .09, 420);
 const renderer = new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.15));
-renderer.shadowMap.enabled = false;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.65));
+renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.21;
@@ -96,7 +96,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 $('game').appendChild(renderer.domElement);
 const ambient = new THREE.HemisphereLight(0xc4e9ff,0x78624c,2.15);scene.add(ambient);
 const sun = new THREE.DirectionalLight(0xffe8c9,2.75);
-sun.position.set(-45,78,32);sun.castShadow=false;sun.shadow.mapSize.set(2048,2048);
+sun.position.set(-45,78,32);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-103,right:103,top:103,bottom:-103,near:1,far:215});sun.shadow.bias=-.00022;
 scene.add(sun);sun.target.position.set(0,0,0);scene.add(sun.target);
 
@@ -228,49 +228,90 @@ addLabel('DISTRETTO BIANCO',96,18,10,'#f2fbff',.86);
 // Enterable town district: 15 new buildings with real rooms such as houses, bank and shops.
 function enterableBuilding(x,z,w,d,h,name,kind='house',face='south'){
  const palette={house:mat('#f1d6c4'),bank:mat('#d7e6f3'),market:mat('#e4dab8'),cafe:mat('#e8c8c0'),clinic:mat('#d9eff1'),arcade:mat('#dbc7f2'),post:mat('#e6d4b5'),toy:mat('#f1d0dc'),library:mat('#d4d7c9'),bakery:mat('#edd6b6'),boutique:mat('#e6c9df'),gym:mat('#d5dce9'),villa:mat('#f3e6cf'),office:mat('#d4dde8'),sweet:mat('#f4d6d6')};
- const base=palette[kind]||palette.house; const trim=M.white;
- box(scene,x,.08,z,w,.16,d,PAVING,false);
- // side and back walls
- structural(x-w/2+.2,z,.4,d,h,base); structural(x+w/2-.2,z,.4,d,h,base);
- structural(x,z-d/2+.2,w,.4,h,base); structural(x,z+d/2-.2,w,.4,h,base);
- // front doorway opening
- if(face==='south'){structural(x-(w*.26),z+d/2-.2,w*.42,.4,h,base); structural(x+(w*.26),z+d/2-.2,w*.42,.4,h,base); box(scene,x,1.35,z+d/2-.19,2.2,2.7,.08,M.woodDark);}
- if(face==='north'){structural(x-(w*.26),z-d/2+.2,w*.42,.4,h,base); structural(x+(w*.26),z-d/2+.2,w*.42,.4,h,base); box(scene,x,1.35,z-d/2+.19,2.2,2.7,.08,M.woodDark);}
- if(face==='east'){structural(x+w/2-.2,z-(d*.26),.4,d*.42,h,base); structural(x+w/2-.2,z+(d*.26),.4,d*.42,h,base); box(scene,x+w/2-.19,1.35,z,.08,2.7,2.2,M.woodDark);}
- if(face==='west'){structural(x-w/2+.2,z-(d*.26),.4,d*.42,h,base); structural(x-w/2+.2,z+(d*.26),.4,d*.42,h,base); box(scene,x-w/2+.19,1.35,z,.08,2.7,2.2,M.woodDark);}
- // roof trim only (open-top style for visibility)
- box(scene,x,h+.18,z,w+.5,.36,d+.5,M.roof);
- // windows and sign
- if(face==='south'||face==='north'){for(let dx=-w/2+1.6;dx<w/2-1;dx+=3.2){let zz=face==='south'?z-d/2+.05:z+d/2-.05; box(scene,x+dx,2.3,zz,1.3,1.35,.10,M.glass,false);}}
- if(face==='east'||face==='west'){for(let dz=-d/2+1.6;dz<d/2-1;dz+=3.2){let xx=face==='east'?x-w/2+.05:x+w/2-.05; box(scene,xx,2.3,z+dz,.10,1.35,1.3,M.glass,false);}}
- addLabel(name.toUpperCase(),x,h+1.3,z,'#fff4de',.5);
- // interior partitions and furniture
- if(w>11){ structural(x,z, .26, d-2.2, h-1.0, mat('#f4efe6')); }
- if(d>8){ let doorGap = 1.2; structural(x-w*.2, z, w*.34, .22, h-1.1, mat('#f4efe6')); structural(x+w*.2, z, w*.34, .22, h-1.1, mat('#f4efe6')); }
- const addTable=(xx,zz)=>{box(scene,xx,.95,zz,2.1,.18,1.2,WOOD); for(let sx of [-.8,.8])for(let sz of [-.35,.35])box(scene,xx+sx,.48,zz+sz,.12,.86,.12,M.metal)};
- const addCounter=(xx,zz,ww,dd)=>{box(scene,xx,1.0,zz,ww,2.0,dd,WOOD);};
- const addShelf=(xx,zz,rot=0)=>{const g=new THREE.Group(); g.position.set(xx,0,zz); g.rotation.y=rot; scene.add(g); box(g,0,1.4,0,1.2,2.8,.42,mat('#9f8a72')); for(let y of [.55,1.35,2.15])box(g,0,y,0,1.3,.08,.52,WOOD);};
- if(kind==='house'||kind==='villa'){addTable(x-(w*.22),z-(d*.18)); box(scene,x+(w*.18),.52,z-(d*.18),2.6,.5,1.8,mat('#b9d5f4')); box(scene,x+(w*.18),1.2,z-(d*.18),2.1,.25,1.4,M.cream); box(scene,x+(w*.18),.9,z+(d*.18),1.4,1.8,1.4,mat('#b69075'));}
- if(kind==='bank'){addCounter(x,0+z, w*.55,1.2); for(let k=-1;k<=1;k++)box(scene,x-3.4+k*1.8,1.4,z+1.2,.9,.9,.14,glow('#9cf5b8',.55),false); box(scene,x+3.2,1.2,z-1.8,1.2,2.2,1.2,M.metal);}
- if(kind==='market'||kind==='bakery'||kind==='sweet'){addCounter(x, z-.8, w*.62,1.2); for(let k=0;k<6;k++)ball(scene,x-w*.22+k*.85,1.75,z-.8,.16,glow(['#ff83ba','#ffd567','#8be7f7'][k%3],.35));}
- if(kind==='cafe'){for(let k=0;k<3;k++)addTable(x-w*.22+k*2.4,z-.6); addCounter(x+w*.20,z+1.7,2.8,1.0);}
- if(kind==='clinic'){for(let k=-1;k<=1;k++)box(scene,x+k*2.6,.85,z-1.0,2.2,.38,1.1,M.white); addCounter(x+3.3,z+1.4,2.4,1.0);}
- if(kind==='arcade'){for(let k=0;k<4;k++)box(scene,x-w*.28+k*1.9,1.25,z-1.0,1.3,2.5,1.0,mat(['#8a66d1','#55b1d3','#e57db0','#71c08f'][k%4])); addTable(x+2.7,z+1.3);}
- if(kind==='post'||kind==='office'){addCounter(x,z-.8,w*.56,1.0); for(let k=0;k<5;k++)box(scene,x-w*.22+k*1.2,2.0,z+1.8,.95,.6,.18,M.cream);} 
- if(kind==='toy'){for(let k=0;k<5;k++)ball(scene,x-w*.22+k*.9,1.25,z-.9,.22,glow(['#f88','#8f8','#88f','#ff8','#8ff'][k%5],.45)); addShelf(x+3.0,z+1.5);} 
- if(kind==='library'){addShelf(x-w*.22,z,0); addShelf(x+w*.22,z,0); addTable(x,z+1.8);} 
- if(kind==='boutique'){for(let k=0;k<4;k++)box(scene,x-w*.24+k*1.2,1.45,z-.8,.7,1.6,.45,mat(['#e2a0c2','#9fc5ef','#d9d18f','#a4d6b0'][k%4])); addCounter(x+2.8,z+1.2,2.6,1.0);} 
- if(kind==='gym'){for(let k=0;k<3;k++){box(scene,x-w*.25+k*2.5,.55,z-.8,.35,1.1,.35,M.metal); box(scene,x-w*.25+k*2.5,1.15,z-.8,1.8,.10,.10,M.metal);} addTable(x+3,z+1.2);} 
- regions.push({x,z,radius:Math.max(w,d)*.7,name:'🏢 '+name});
+ const base=palette[kind]||palette.house,trim=M.white,wall=.35,doorW=3.15,lintelH=2.85;
+ const line=(xx,zz,ww,dd,hh=h,yy=0,material=base)=>{if(ww>.15&&dd>.15&&hh>.15)structural(xx,zz,ww,dd,hh,material,yy)};
+ // Solid floor, but no solid front door: you can walk directly into the building.
+ box(scene,x,.07,z,w,.14,d,PAVING,false);
+ const entranceZ=face==='north'?z-d/2+.2:z+d/2-.2;
+ const entranceX=face==='east'?x+w/2-.2:x-w/2+.2;
+ if(face==='north'||face==='south'){
+   // Back and side walls; the front wall is broken into two pieces with a 3m passage.
+   line(x,z+(face==='north'?d/2-.2:-d/2+.2),w,wall);
+   line(x-w/2+.2,z,wall,d);line(x+w/2-.2,z,wall,d);
+   const seg=(w-doorW)/2;
+   line(x-w/2+seg/2,entranceZ,seg,wall);line(x+w/2-seg/2,entranceZ,seg,wall);
+   line(x,entranceZ,doorW,wall,h-lintelH,lintelH);
+ }else{
+   line(x+(face==='east'?-w/2+.2:w/2-.2),z,wall,d);
+   line(x,z-d/2+.2,w,wall);line(x,z+d/2-.2,w,wall);
+   const seg=(d-doorW)/2;
+   line(entranceX,z-d/2+seg/2,wall,seg);line(entranceX,z+d/2-seg/2,wall,seg);
+   line(entranceX,z,wall,doorW,h-lintelH,lintelH);
+ }
+ // A porch/welcome mat and an arch showing how to enter, with an unblocked opening.
+ const axisZ=face==='north'||face==='south';
+ const out=(face==='north'||face==='west')?-1:1;
+ box(scene,axisZ?x:entranceX+out*.5,.10,axisZ?entranceZ+out*.6:z,axisZ?doorW:1.2,.12,axisZ?1.2:doorW,mat('#e6c59b'),false);
+ const frameMat=kind==='arcade'?glow('#d29bff',.8):kind==='cafe'?glow('#ffb966',.55):M.gold;
+ if(axisZ){for(const xx of [x-doorW/2,x+doorW/2])box(scene,xx,1.43,entranceZ, .12,2.86,.18,frameMat,false);}
+ else for(const zz of [z-doorW/2,z+doorW/2])box(scene,entranceX,1.43,zz,.18,2.86,.12,frameMat,false);
+ // No opaque full roof (it blocked the third-person camera): 4 thin eaves only.
+ const roof=mat('#cad3e0');
+ for(const zz of [z-d/2,z+d/2])box(scene,x,h+.09,zz,w+.45,.25,.35,roof,false);
+ for(const xx of [x-w/2,x+w/2])box(scene,xx,h+.09,z,.35,.25,d,roof,false);
+ // Two real rooms, with a walk-through doorway in the internal wall.
+ const partition=mat('#f6eee3');const sepZ=z-d*.08;
+ const gap=2.7,seg=(w-gap)/2;
+ line(x-w/2+seg/2,sepZ,seg,.22,h-1.15,0,partition);
+ line(x+w/2-seg/2,sepZ,seg,.22,h-1.15,0,partition);
+ // Room labels and fittings show that the two spaces are truly separate.
+ const frontName=(kind==='cafe'?'SALA BAR':kind==='arcade'?'SALA GIOCHI':kind==='bank'?'SALA CLIENTI':'SALA PRINCIPALE');
+ const backName=(kind==='house'||kind==='villa'?'CAMERA':kind==='bank'?'CAVEAU':kind==='arcade'?'SALA ARCADE':kind==='cafe'?'RETROBANCO':'SALA INTERNA');
+ addLabel(frontName,x,3.05,z+d*.25,'#fff7d8',.27);
+ addLabel(backName,x,3.05,z-d*.27,'#d9f6ff',.27);
+ addLabel(name.toUpperCase(),x,h+1.20,z,'#fff5dd',.52);
+ // Window sections are on the side walls; they do not obstruct the doorway.
+ for(const zz of [z-d*.28,z+d*.27]){
+   box(scene,x-w/2+.01,2.4,zz,.065,1.42,1.15,M.glass,false);
+   box(scene,x+w/2-.01,2.4,zz,.065,1.42,1.15,M.glass,false);
+ }
+ const addTable=(xx,zz)=>{box(scene,xx,.86,zz,1.5,.17,.95,WOOD,false);for(const sx of [-.55,.55])for(const sz of [-.31,.31])box(scene,xx+sx,.46,zz+sz,.10,.78,.10,M.metal,false)};
+ const addCounter=(xx,zz,ww=2.4,dd=.65)=>{box(scene,xx,.73,zz,ww,1.4,dd,WOOD,false);box(scene,xx,1.45,zz,ww+.12,.08,dd+.13,M.cream,false)};
+ const addShelf=(xx,zz)=>{box(scene,xx,1.28,zz,1.15,2.56,.40,mat('#aa8d6e'),false);for(const yy of [.58,1.23,1.92])box(scene,xx,yy,zz,1.28,.09,.55,WOOD,false)};
+ const fz=z+d*.26,bz=z-d*.28, lx=x-w*.26,rx=x+w*.26;
+ if(kind==='house'||kind==='villa'){
+   addTable(lx,fz);box(scene,rx,.50,bz,2.05,.52,1.34,mat('#b8d4fa'),false);
+   box(scene,rx,1.03,bz,1.9,.18,1.14,M.cream,false);addShelf(lx,bz);
+ }else if(kind==='bank'){
+   addCounter(lx,bz,2.5,.77);box(scene,rx,1.15,bz,1.2,2.3,1.1,M.metal,false);
+   box(scene,rx,1.16,bz+.58,.72,.8,.08,glow('#7de4ba',.4),false);addTable(lx,fz);
+ }else if(kind==='cafe'){
+   addCounter(lx,bz,2.65,.78);for(const j of [-1,0,1])ball(scene,lx+j*.6,1.59,bz,.18,glow('#ffd19b',.6));
+   addTable(lx,fz);addTable(rx,fz);box(scene,rx,1.43,bz,1.18,2.35,.50,mat('#9e5d56'),false);
+ }else if(kind==='arcade'){
+   for(const j of [-1,0,1]){const xx=x+j*1.35;box(scene,xx,1.2,bz,1.07,2.4,.65,mat(['#7d5ed3','#48b9d6','#ee82ab'][j+1]),false);box(scene,xx,1.42,bz+.35,.7,.55,.035,glow('#f9e68a',.8),false)}
+   addTable(lx,fz);addTable(rx,fz); // fantasy arcade tables, no real-money gambling
+ }else if(kind==='clinic'){
+   for(const xx of [lx,rx])box(scene,xx,.8,bz,2.0,.4,1.0,M.white,false);addCounter(lx,fz);
+ }else if(kind==='gym'){
+   for(const xx of [lx,rx]){box(scene,xx,.38,bz,.5,.25,1.4,M.metal,false);box(scene,xx,1.25,bz,1.8,.10,.10,M.metal,false)}addTable(lx,fz);
+ }else if(kind==='boutique'||kind==='toy'){
+   for(let j=0;j<4;j++)ball(scene,x+(j-1.5)*.85,1.42,bz,.20,glow(['#ff8ed0','#88e9ed','#ffe39a','#b9a0fa'][j],.6));
+   addCounter(lx,fz);addShelf(rx,bz);
+ }else{
+   addCounter(lx,fz,2.8,.65);addShelf(rx,bz);
+   for(let j=0;j<4;j++)ball(scene,lx+(j-1.5)*.55,1.62,fz,.15,glow(['#ff8ebc','#ffe395','#a3edff','#caa3fe'][j],.5));
+ }
+ regions.push({x,z,radius:Math.max(w,d)*.7,name:'🏠 '+name});
 }
 const townBuildings=[
- {x:-92,z:108,w:12,d:10,h:5.8,name:'Casa Rosa',kind:'house',face:'south'},
- {x:-46,z:108,w:12,d:10,h:5.8,name:'Casa Blu',kind:'house',face:'south'},
- {x:0,z:108,w:15,d:11,h:6.4,name:'Banca Candy',kind:'bank',face:'south'},
- {x:46,z:108,w:13,d:10,h:5.8,name:'Mini Market',kind:'market',face:'south'},
- {x:92,z:108,w:13,d:10,h:5.8,name:'Caffè Sprint',kind:'cafe',face:'south'},
+ {x:-92,z:108,w:12,d:10,h:5.8,name:'Casa Rosa',kind:'house',face:'north'},
+ {x:-46,z:108,w:12,d:10,h:5.8,name:'Casa Blu',kind:'house',face:'north'},
+ {x:0,z:108,w:15,d:11,h:6.4,name:'Banca Candy',kind:'bank',face:'north'},
+ {x:46,z:108,w:13,d:10,h:5.8,name:'Mini Market',kind:'market',face:'north'},
+ {x:92,z:108,w:13,d:10,h:5.8,name:'BAR CANDY',kind:'cafe',face:'north'},
  {x:-108,z:86,w:10,d:14,h:5.8,name:'Clinica',kind:'clinic',face:'east'},
- {x:-108,z:44,w:10,d:14,h:5.8,name:'Sala Giochi',kind:'arcade',face:'east'},
+ {x:-108,z:44,w:10,d:14,h:5.8,name:'CASINÒ ARCADE',kind:'arcade',face:'east'},
  {x:-108,z:0,w:10,d:14,h:5.8,name:'Ufficio Posta',kind:'post',face:'east'},
  {x:-108,z:-44,w:10,d:14,h:5.8,name:'Negozio Giocattoli',kind:'toy',face:'east'},
  {x:-108,z:-88,w:10,d:14,h:5.8,name:'Biblioteca 2',kind:'library',face:'east'},
@@ -278,7 +319,7 @@ const townBuildings=[
  {x:108,z:44,w:10,d:14,h:5.8,name:'Boutique',kind:'boutique',face:'west'},
  {x:108,z:0,w:10,d:14,h:5.8,name:'Palestrina',kind:'gym',face:'west'},
  {x:108,z:-44,w:10,d:14,h:5.8,name:'Villa Candy',kind:'villa',face:'west'},
- {x:108,z:-88,w:10,d:14,h:5.8,name:'Dolci & Co',kind:'sweet',face:'west'}
+ {x:108,z:-88,w:10,d:14,h:5.8,name:'BAR GELATO',kind:'cafe',face:'west'}
 ];
 for(const b of townBuildings) enterableBuilding(b.x,b.z,b.w,b.d,b.h,b.name,b.kind,b.face);
 addLabel('QUARTIERE DEGLI EDIFICI',0,9,108,'#fff0d0',.85);
@@ -619,6 +660,17 @@ for(let i=0;i<6;i++)candySpots.push([-89+(i%3)*10,48+Math.floor(i/3)*7]);
 for(let i=0;i<6;i++)candySpots.push([ -28+(i%3)*11,-91+Math.floor(i/3)*11 ]);
 for(let i=0;i<5;i++)candySpots.push([ 58+(i%3)*13,-94+Math.floor(i/3)*14 ]);
 for(let i=0;i<4;i++)candySpots.push([-29+(i%2)*23,66+Math.floor(i/2)*11]);
+// Extra collectables in the 15 enterable shops, bars, bank and casino (plus roads).
+for(const b of townBuildings){
+ const xx=Math.min(b.w*.25,2.3),zz=Math.min(b.d*.22,2.2);
+ for(const sx of [-1,1])for(const sz of [-1,1])candySpots.push([b.x+sx*xx,b.z+sz*zz]);
+ const road= b.face==='north'?[0,-b.d/2-1.6]:b.face==='south'?[0,b.d/2+1.6]:b.face==='east'?[b.w/2+1.6,0]:[-b.w/2-1.6,0];
+ for(const side of [-1,1])candySpots.push([b.x+road[0]+(road[0]?0:side*1.4),b.z+road[1]+(road[1]?0:side*1.4)]);
+}
+for(let i=0;i<24;i++){
+ const t=-75+i*6.4;
+ candySpots.push([t,39+(i%2?1.8:-1.8)]);
+}
 const TOTAL_CANDY=candySpots.length;
 const candyMats=[glow('#ffa2d0',.3),glow('#ffdc86',.3),glow('#8be8fc',.3),glow('#b3eda2',.3)];
 function createCandy(x,z,id){const g=new THREE.Group();g.position.set(x,.85,z);scene.add(g);const material=candyMats[id%4];ball(g,0,0,0,.32,material);const l=new THREE.Mesh(new THREE.ConeGeometry(.24,.35,5),material);l.rotation.z=-Math.PI/2;l.position.x=-.34;g.add(l);const r=l.clone();r.rotation.z=Math.PI/2;r.position.x=.34;g.add(r);const item={x,z,id,mesh:g};pickups.push(item)}
@@ -644,7 +696,17 @@ const TYPES={
  preside:{label:'Preside volante',emoji:'👑',coat:'#a75875',hp:36,speed:2.95,range:31,cool:1.7,power:12,style:'fly',summary:'Vola e lancia circoli arcobaleno'},
  bullo:{label:'Bullo dei colori',emoji:'🎨',coat:'#84a45c',hp:9,speed:3.0,range:16,cool:2.25,power:7,style:'spray',summary:'Nuvole spray di vernice fantastica'},
  custode:{label:'Robot bibliotecario',emoji:'🤖',coat:'#60a0ae',hp:7,speed:1.95,range:18,cool:2.2,power:8,style:'pencil',summary:'Matite a molla'},
- ninja:{label:'Ninja d’inchiostro',emoji:'🥷',coat:'#2a3340',hp:10,speed:3.7,range:18,cool:1.45,power:7,style:'shuriken',summary:'Lancia shuriken mimetici'}
+ ninja:{label:'Ninja d’inchiostro',emoji:'🥷',coat:'#2a3340',hp:10,speed:3.7,range:18,cool:1.45,power:7,style:'shuriken',summary:'Lancia shuriken mimetici'},
+ negoziante:{label:'Negoziante Sprint',emoji:'🛒',coat:'#41a596',hp:9,speed:2.1,range:18,cool:1.85,power:6,style:'receipt',summary:'Lancia scontrini a ventaglio'},
+ barista:{label:'Barista Turbo',emoji:'☕',coat:'#8c5b42',hp:12,speed:2.4,range:16,cool:2.2,power:8,style:'coffee',summary:'Raffica di tazze di caffè magiche'},
+ croupier:{label:'Custode del Casinò Arcade',emoji:'🎰',coat:'#8a55b4',hp:13,speed:2.0,range:19,cool:2.6,power:6,style:'cards',summary:'Carte animate a cinque punte'},
+ guardiabanca:{label:'Guardia della Banca',emoji:'🛡️',coat:'#3b678a',hp:16,speed:2.65,range:17,cool:2.1,power:9,style:'coins',summary:'Gettoni dorati rimbalzanti'},
+ panettiere:{label:'Panettiere Fulmine',emoji:'🥖',coat:'#b78c54',hp:9,speed:2.2,range:16,cool:2.45,power:9,style:'bread',summary:'Pagnotte rotanti'},
+ dottore:{label:'Dottore delle Bolle',emoji:'🩺',coat:'#6faeb8',hp:10,speed:1.9,range:20,cool:1.9,power:5,style:'bubble',summary:'Bolle colorate di sapone'},
+ postino:{label:'Postino Jet',emoji:'✉️',coat:'#cb8c47',hp:8,speed:3.1,range:18,cool:1.7,power:7,style:'letter',summary:'Lettere luminose'},
+ commessa:{label:'Commessa Neon',emoji:'🎀',coat:'#d277a5',hp:10,speed:2.4,range:17,cool:2.1,power:7,style:'ribbon',summary:'Nastri arcobaleno'},
+ giocattolaio:{label:'Giocattolaio Meccanico',emoji:'🧸',coat:'#659b85',hp:13,speed:1.95,range:16,cool:2.2,power:9,style:'toy',summary:'Palline giocattolo giganti'},
+ pasticcere:{label:'Pasticcere Incantato',emoji:'🧁',coat:'#be6e95',hp:12,speed:2.2,range:18,cool:2.35,power:9,style:'frost',summary:'Cristalli di glassa gelata'}
 };
 function spawnEnemy(type,x,z){let t=TYPES[type];const group=new THREE.Group();group.position.set(x,0,z);scene.add(group);
  const coat=mat(t.coat),face=mat(type==='custode'?'#b7d4df':'#ebbd9f');
@@ -671,6 +733,15 @@ for(let [x,z] of [[6,-29],[0,-5],[-69,-5],[76,-78]])spawnEnemy('custode',x,z);
 spawnEnemy('bullo',61,54);spawnEnemy('bullo',78,-11);
 spawnEnemy('vice',1,-72);spawnEnemy('preside',0,-94);
 spawnEnemy('ninja',-20,73);spawnEnemy('ninja',23,21);spawnEnemy('ninja',76,-17);
+// Ten NEW enemy types, placed near their own enterable buildings.
+const cityEnemySpawns=[
+ ['negoziante',46,108],['barista',92,108],['croupier',-108,44],
+ ['guardiabanca',0,108],['panettiere',108,86],['dottore',-108,86],
+ ['postino',-108,0],['commessa',108,44],['giocattolaio',-108,-44],
+ ['pasticcere',108,-88]
+];
+for(const [type,x,z] of cityEnemySpawns){const e=spawnEnemy(type,x,z);e.cool=3.0;}
+
 
 // 30 distinct citizens with different looks, outfits, dialogue and routines.
 const NPC_PROFILES=[
@@ -777,8 +848,17 @@ function inventory(){let tiles=weapons.map((w,i)=>{let ok=gameMode==='creative'|
 function endingsMenu(){if(gameMode==='multi'){toast('🏆 In multiplayer vince chi raccoglie più caramelle!');return}const markup=endings.map(e=>{let ok=e.ok(),done=state.finals.includes(e.id);return `<div class="tile ${ok?'':'dim'}"><b>${e.id}. ${e.emoji} ${e.title}</b><span>${e.need}</span><span>${done?'🏅 FINALE GIÀ SCOPERTO':ok?'✅ DISPONIBILE':'🔒 ANCORA BLOCCATO'}</span><button class="btn doEnding" data-id="${e.id}" ${ok?'':'disabled'}>${done?'Rivedi finale':'Scopri il finale'}</button></div>`}).join('');uiModal('🏆 I 20 finali di Candy Chaos',`<p><b>${state.finals.length}/20 finali scoperti.</b> Ogni finale richiede una vera sfida. Alcuni possono essere completati senza combattimenti! I progressi vengono salvati sul browser.</p><div class="tiles">${markup}</div>`,[{text:'▶ CONTINUA A ESPLORARE',fn:resume}],'LIBRO DEI DESTINI');document.querySelectorAll('.doEnding').forEach(el=>el.onclick=()=>completeEnding(+el.dataset.id))}
 function completeEnding(id){const e=endings.find(v=>v.id===id);if(!e||!e.ok()){toast('Devi ancora soddisfare le condizioni!');return}if(!state.finals.includes(id))state.finals.push(id);safeSave();puff(state.x,1.7,state.z,0xffd277,50,10);uiModal(`${e.emoji} FINALE ${e.id}: ${e.title.toUpperCase()}`,`<p style="font-size:17px">${e.story}</p><div class="feature">🏅 Finali sbloccati: <b>${state.finals.length} su 20</b> · Caramelle: <b>${state.candy}/${TOTAL_CANDY}</b> · Libri: <b>${state.books.length}/${bookDefs.length}</b></div><p>Questo è uno dei 20 finali alternativi. Puoi continuare nella stessa partita e scoprirli tutti!</p>`,[{text:'🌍 CONTINUA IL MONDO APERTO',fn:resume},{text:'📜 VEDI TUTTI I FINALI',fn:endingsMenu,secondary:true}],'FINALE SCOPERTO')}
 function showMap(){mapExpanded=!mapExpanded;$('minimap').style.width=mapExpanded?'300px':'170px';$('minimap').style.height=mapExpanded?'300px':'170px';toast(mapExpanded?'🗺️ Mappa ingrandita':'🗺️ Mappa normale')}
-function onQuiz(index){let b=bookDefs[index];if(gameMode==='creative'){chooseWeapon(b.weapon);return}if(state.books.includes(index)){toast('✅ Operazione già superata!');return}quizIndex=index;uiModal('📖 '+b.name,`<p>Hai trovato un libro incantato. Per sbloccare <b>${weapons[b.weapon].emoji} ${weapons[b.weapon].name}</b>, risolvi l'operazione:</p><div class="feature" style="font-size:28px;text-align:center"><b>${b.question} = ?</b></div><div style="text-align:center"><input id="answer" type="number" placeholder="Risposta" autocomplete="off" inputmode="numeric"></div><p class="muted" id="answerFeedback">Scrivi la risposta e premi INVIO oppure il pulsante.</p>`,[{text:'✅ VERIFICA OPERAZIONE',fn:submitQuiz},{text:'RIPRENDI DOPO',fn:resume,secondary:true}],'IL LIBRO MAGICO');$('answer').focus();$('answer').addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();submitQuiz()}})}
-function submitQuiz(){if(quizIndex<0)return;let n=Number($('answer')?.value),b=bookDefs[quizIndex];if(!$('answer')?.value||!Number.isFinite(n)){$('answerFeedback').textContent='Inserisci un numero prima di verificare.';return}if(n!==b.answer){state.bookWrong++;$('answerFeedback').textContent='❌ Non è la risposta giusta. Riprova: il libro ti aspetta!';$('answer').select();return}
+function onQuiz(index){let b=bookDefs[index];if(gameMode==='creative'){chooseWeapon(b.weapon);return}if(state.books.includes(index)){toast('✅ Operazione già superata!');return}quizIndex=index;uiModal('📖 '+b.name,`<p>Hai trovato un libro incantato. Per sbloccare <b>${weapons[b.weapon].emoji} ${weapons[b.weapon].name}</b>, risolvi l'operazione:</p><div class="feature" style="font-size:28px;text-align:center"><b>${b.question} = ?</b></div><div style="text-align:center"><input id="answer" type="number" placeholder="Risposta" autocomplete="off" inputmode="numeric"></div><p class="muted" id="answerFeedback">Ogni errore costa 1 caramella (minimo zero). Premi INVIO o VERIFICA.</p>`,[{text:'✅ VERIFICA OPERAZIONE',fn:submitQuiz},{text:'RIPRENDI DOPO',fn:resume,secondary:true}],'IL LIBRO MAGICO');$('answer').focus();$('answer').addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();submitQuiz()}})}
+function submitQuiz(){if(quizIndex<0)return;let n=Number($('answer')?.value),b=bookDefs[quizIndex];if(!$('answer')?.value||!Number.isFinite(n)){$('answerFeedback').textContent='Inserisci un numero prima di verificare.';return}if(n!==b.answer){state.bookWrong++;
+  if(gameMode==='multi'&&netReady){sendNet({type:'quizWrong'});$('answerFeedback').textContent='❌ Risposta sbagliata: -1 caramella (se ne hai). Riprova!';}
+  else {
+    const lost=state.candy>0;
+    if(lost){state.candy=Math.max(0,state.candy-1);if(gameMode==='single')cosmeticState.candies=Math.max(0,cosmeticState.candies-1);
+      const dropped=state.collected.pop();if(Number.isInteger(dropped)&&candySpots[dropped]&&!pickups.some(c=>c.id===dropped)){createCandy(...candySpots[dropped],dropped);}
+      saveCosmetics();safeSave();}
+    $('answerFeedback').textContent=lost?'❌ Sbagliato! -1 caramella. Riprova!':'❌ Sbagliato! Hai 0 caramelle: non puoi perderne altre. Riprova!';
+  }
+  $('answer').select();return}
  state.books.push(quizIndex);chooseWeapon(b.weapon);puff(b.x,1.8,b.z,0xf7d18a,35,8);toast('📖 RISPOSTA ESATTA! Nuovo potere sbloccato!');safeSave();quizIndex=-1;uiModal('🎉 Libro decifrato!',`<p>✅ <b>${b.question} = ${b.answer}</b>. Hai ottenuto <b>${weapons[b.weapon].emoji} ${weapons[b.weapon].name}</b>.</p><p>Libri completati: ${state.books.length}/${bookDefs.length}. Trova gli altri libri in palestra, parco, mercato, torre, tunnel e cortile del preside.</p>`,[{text:'▶ USA IL NUOVO POTERE',fn:resume}],'OPERAZIONE COMPLETATA')}
 let perfMode=false;function toggleGraphics(){perfMode=!perfMode;renderer.setPixelRatio(perfMode?1:Math.min(window.devicePixelRatio||1,1.65));renderer.shadowMap.enabled=!perfMode;sun.castShadow=!perfMode;toast(perfMode?'🎛️ GRAFICA FLUIDA ATTIVA':'✨ GRAFICA ALTA ATTIVA')}
 function showPause(){uiModal('⏸ Pausa',`<p>Partita in corso. Caramelle: ${state.candy}/${TOTAL_CANDY} · Libri: ${state.books.length}/${bookDefs.length} · Finali: ${state.finals.length}/20.</p><div class="feature">💡 Usa i salti doppi per il parkour. Premi <b>R</b> per lo scatto, <b>Ctrl</b> per scivolare, <b>F</b> per il rampino vicino alla torre. I libri richiedono una risposta matematica prima di sbloccare le armi.</div>`,[{text:'▶ RIPRENDI',fn:resume},{text:'🏆 20 FINALI',fn:endingsMenu,secondary:true},{text:'🎒 ARMI',fn:inventory,secondary:true},{text:'🎛️ QUALITÀ GRAFICA',fn:()=>{toggleGraphics();showPause()},secondary:true},{text:'🏠 MENÙ PRINCIPALE',fn:backToModes,secondary:true},{text:'🔁 NUOVA PARTITA',fn:confirmReset,secondary:true,disabled:gameMode==='multi'}],'PAUSA')}
@@ -869,15 +949,26 @@ function fire(){if(state.shotCD>0||paused)return;const w=weapons[state.weapon];s
 function damagePlayer(power){if(state.invincible>0||paused||gameMode==='creative')return;state.hp-=power;state.invincible=.54;$('damage').style.opacity=.7;state.combo=0;puff(state.x,state.y+1,state.z,0xff7791,7,3);
  if(state.hp<=0){state.hp=0;death()}}
 function death(){uiModal('🍬 Ti hanno fermato!',`<p>Le guardie fantasy della scuola ti hanno messo fuori gioco. Non perdi i libri o le caramelle raccolte: puoi ripartire subito dal cortile con la salute piena.</p><div class="feature">💡 Schiva i libri dei professori, scatta via dalle bolle di sapone delle bidelle e muoviti quando il vicepreside sparisce sottoterra!</div>`,[{text:'❤️ RIPROVA DAL CORTILE',fn:()=>{state.hp=100;state.st=100;state.x=0;state.y=0;state.z=27;state.vy=0;state.vx=0;state.vz=0;state.invincible=2;resume()}},{text:'🏆 VEDI I FINALI',fn:endingsMenu,secondary:true}],'RIPROVA')}
-function spawnShot(origin,dir,type,spread=0){let t=TYPES[type],colors={mop:0xa9eefa,books:0xffd66b,burrow:0xc48dff,fly:0xe9a8fa,spray:0xff95b7,pencil:0x9eef76,shuriken:0xc5ffe9};const color=colors[t.style];let ob;
- if(t.style==='books'||t.style==='pencil'){ob=box(scene,origin.x,origin.y,origin.z,.23,.2,.52,glow(color,.85));}
- else ob=ball(scene,origin.x,origin.y,origin.z,t.style==='spray'?.28:.21,glow(color,1.0));
+function spawnShot(origin,dir,type,spread=0){let t=TYPES[type],colors={mop:0xa9eefa,books:0xffd66b,burrow:0xc48dff,fly:0xe9a8fa,spray:0xff95b7,pencil:0x9eef76,shuriken:0xc5ffe9,receipt:0xb9fff3,coffee:0xaa704a,cards:0xeeafff,coins:0xffd55c,bread:0xffd395,bubble:0x9deffe,letter:0xfff4c3,ribbon:0xff83cc,toy:0x8cfa7d,frost:0xc5f6ff};const color=colors[t.style]||0xffffff;let ob;
+ if(['books','pencil','receipt','cards','letter','ribbon'].includes(t.style)){
+   const w=['receipt','cards','letter','ribbon'].includes(t.style)?.39:.23;
+   ob=box(scene,origin.x,origin.y,origin.z,w,.14,.51,glow(color,.8));
+   if(t.style==='ribbon')ob.rotation.z=Math.PI/4;
+ }else if(t.style==='coins'){ob=new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.07,12),glow(color,1));ob.rotation.z=Math.PI/2;ob.position.copy(origin);scene.add(ob)}
+ else if(t.style==='bread'){ob=new THREE.Mesh(new THREE.CapsuleGeometry(.18,.23,5,10),mat('#deb36c'));ob.position.copy(origin);scene.add(ob)}
+ else if(t.style==='coffee'){ob=new THREE.Mesh(new THREE.CylinderGeometry(.15,.2,.34,10),mat('#b4826d'));ob.position.copy(origin);scene.add(ob)}
+ else ob=ball(scene,origin.x,origin.y,origin.z,['toy','bubble','frost'].includes(t.style)?.27:t.style==='spray'?.28:.21,glow(color,1.0));
  const d=dir.clone();d.x+=(rng()-.5)*spread;d.z+=(rng()-.5)*spread;d.y+=(rng()-.5)*spread*.5;d.normalize();projectiles.push({mesh:ob,direction:d,speed:t.style==='fly'?19:t.style==='spray'?12:15,life:t.style==='spray'?1.1:2.1,team:'enemy',power:t.power,color,kind:t.style})}
 function attackEnemy(e){let t=TYPES[e.type],origin=e.group.position.clone().add(new THREE.Vector3(0,1.7,0));let target=new THREE.Vector3(state.x,state.y+1.1,state.z).sub(origin).normalize();
  if(e.type==='bidella'){puff(origin.x,.3,origin.z,0x9debd5,22,7);if(diskDist(e.group.position, state)<5)damagePlayer(t.power);return}
  if(e.type==='bullo'){for(let k=0;k<6;k++)spawnShot(origin,target,e.type,.58);puff(origin.x,1.5,origin.z,0xffa1cf,10,5);return}
  if(e.type==='preside'){for(let k=0;k<3;k++)spawnShot(origin,target,e.type,.3);return}
  if(e.type==='ninja'){for(let k=0;k<3;k++)spawnShot(origin,target,e.type,.22); puff(origin.x,1.2,origin.z,0xc5ffe9,8,4); return}
+ if(['croupier','commessa'].includes(e.type)){for(let k=0;k<5;k++)spawnShot(origin,target,e.type,.49);return}
+ if(['barista','negoziante','postino'].includes(e.type)){for(let k=0;k<3;k++)spawnShot(origin,target,e.type,.23);return}
+ if(e.type==='guardiabanca'){for(let k=0;k<2;k++)spawnShot(origin,target,e.type,.16);return}
+ if(e.type==='dottore'){for(let k=0;k<4;k++)spawnShot(origin,target,e.type,.37);return}
+ if(e.type==='pasticcere'){for(let k=0;k<4;k++)spawnShot(origin,target,e.type,.31);puff(origin.x,1.2,origin.z,0xe1dfff,7,4);return}
  spawnShot(origin,target,e.type)}
 function updateEnemies(dt){for(let e of enemies){if(!e.alive){e.respawn-=dt;if(e.respawn<=0){e.alive=true;e.hp=e.maxHp;e.group.position.set(e.homeX,0,e.homeZ);e.x=e.homeX;e.z=e.homeZ;e.group.visible=true;e.cool=2;e.state='normal'; setEnemyBar(e)}continue}
  let t=TYPES[e.type];e.stun=Math.max(0,e.stun-dt);e.cool-=dt;e.phase+=dt;
@@ -971,7 +1062,7 @@ const escapeHTML=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>'
 function fullCandyReset(){for(const c of [...pickups]){scene.remove(c.mesh)}pickups.length=0;for(let i=0;i<candySpots.length;i++)createCandy(...candySpots[i],i);state.collected=[];state.candy=0;}
 function resetModePlayer(){state.x=0;state.z=27;state.y=0;state.vx=0;state.vz=0;state.vy=0;state.hp=100;state.st=100;state.invincible=0;state.books=[];state.weapon=0;state.shotCD=0;state.checkpoint={x:0,z:27};player.position.set(0,0,27);applyCharacterSkin();chooseWeapon(0)}
 function setMode(mode){gameMode=mode;$('modeBanner').textContent=mode==='creative'?'✨ CREATIVA · INVINCIBILE · 20 ARMI':mode==='single'?'🎮 GIOCATORE SINGOLO · AVVENTURA':'📡 MULTIGIOCATORE LAN · CACCIA ALLE CARAMELLE';$('lobbyHud').style.display=mode==='multi'?'block':'none';for(const e of enemies)e.group.visible=mode!=='multi'&&e.alive;if(mode==='creative'){fullCandyReset();resetModePlayer();state.hp=100;toast('✨ 20 ARMI SBLOCCATE · ENERGIA INFINITA',3)}if(mode==='multi'){fullCandyReset();resetModePlayer()} }
-function initModeMenu(){gameMode='menu';paused=true;playing=false;uiModal('🍬 CANDY CHAOS 3D',`<div class="menuBanner">SCHERMATA PRINCIPALE</div><p>Armi con modelli 3D sagomati (senza cubi), in stile sparatutto, mondo più vasto, distretto bianco con torri, scuola esplorabile, multiplayer e negozio skin.</p><div class="feature">🍬 Le caramelle raccolte e le vittorie fanno guadagnare crediti per le skin (100–300 🍬). Totale disponibile: <b style="font-size:22px;color:#ffe08b">${cosmeticState.candies}</b></div><div id="modeSelection"><button class="modeCard" id="playCard"><span class="bigicon">▶</span><b>GIOCA</b><small>Apri la schermata con tutte le modalità disponibili.</small></button><button class="modeCard" id="shopCard"><span class="bigicon">🛍️</span><b>SKIN E SHOP</b><small>Compra ed equipaggia skin per personaggio e armi usando le caramelle.</small></button><button class="modeCard" id="multiCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Gioca con amici anche senza Internet, sullo stesso Wi-Fi o hotspot. Stanze con codice a 6 cifre.</small></button></div>`,[], 'MENU PRINCIPALE');$('playCard').onclick=showPlayModes;$('shopCard').onclick=showSkinShop;$('multiCard').onclick=showMultiplayerMenu;}
+function initModeMenu(){gameMode='menu';paused=true;playing=false;uiModal('🍬 CANDY CHAOS 3D',`<div class="menuBanner">SCHERMATA PRINCIPALE</div><p>Armi con modelli 3D sagomati (senza cubi), in stile sparatutto, mondo più vasto, bar e casinò arcade con stanze accessibili, 10 nuovi nemici, più caramelle, torri, multiplayer e skin.</p><div class="feature">🍬 Le caramelle raccolte e le vittorie fanno guadagnare crediti per le skin (100–300 🍬). Totale disponibile: <b style="font-size:22px;color:#ffe08b">${cosmeticState.candies}</b></div><div id="modeSelection"><button class="modeCard" id="playCard"><span class="bigicon">▶</span><b>GIOCA</b><small>Apri la schermata con tutte le modalità disponibili.</small></button><button class="modeCard" id="shopCard"><span class="bigicon">🛍️</span><b>SKIN E SHOP</b><small>Compra ed equipaggia skin per personaggio e armi usando le caramelle.</small></button><button class="modeCard" id="multiCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Gioca con amici anche senza Internet, sullo stesso Wi-Fi o hotspot. Stanze con codice a 6 cifre.</small></button></div>`,[], 'MENU PRINCIPALE');$('playCard').onclick=showPlayModes;$('shopCard').onclick=showSkinShop;$('multiCard').onclick=showMultiplayerMenu;}
 function showPlayModes(){uiModal('🎮 MODALITÀ DI GIOCO',`<div class="menuBanner">SCEGLI COME GIOCARE</div><div id="modeSelection"><button class="modeCard" id="creativeCard"><span class="bigicon">✨</span><b>CREATIVA</b><small>Tutte le armi subito disponibili. Non puoi perdere energia. Esplora e fai parkour.</small></button><button class="modeCard" id="soloCard"><span class="bigicon">🎮</span><b>GIOCATORE SINGOLO</b><small>Avventura completa, libri con operazioni, boss e 20 finali.</small></button><button class="modeCard" id="partyCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Crea una stanza locale, invita amici e gioca anche senza Internet.</small></button></div>`,[{text:'⬅ TORNA',fn:initModeMenu,secondary:true}],'TUTTE LE MODALITÀ');$('creativeCard').onclick=()=>{setMode('creative');resume();toast('🌈 MODALITÀ CREATIVA!',2.5)};$('soloCard').onclick=()=>{setMode('single'); try{let saved=JSON.parse(localStorage.getItem('candy-chaos-ultimate-v2')||'null');if(saved&&Array.isArray(saved.books)){for(let k of Object.keys(saved))if(k in state)state[k]=saved[k];for(let c of [...pickups])if(state.collected.includes(c.id)){scene.remove(c.mesh);pickups.splice(pickups.indexOf(c),1)}}}catch(e){} chooseWeapon(state.weapon); start()}; $('partyCard').onclick=showMultiplayerMenu;}
 function backToModes(){if(network){try{sendNet({type:'leave'});network.close()}catch(e){}network=null;}onlineRoom=null;netReady=false;myPlayerId=null;onlineHost=false;for(const r of remotePlayers.values())scene.remove(r.group);remotePlayers.clear();$('lobbyHud').style.display='none';fullCandyReset();resetModePlayer();initModeMenu()}
 let localLanLinks=[];
@@ -1041,6 +1132,7 @@ function handleNet(msg){if(msg.type==='error'){connectionError(msg.message||'Err
 function showNetworkPause(){if(gameMode==='multi'){uiModal('⏸ Pausa online',`<p>La gara continua anche mentre questo menu è aperto. Puoi tornare alla partita oppure lasciare la stanza.</p><div class="feature">Stanza <b>${onlineRoom}</b> · Nella gara online le caramelle sono condivise e puoi recuperare quelle di un altro giocatore mettendolo fuori gioco.</div>`,[{text:'▶ RIPRENDI',fn:resume},{text:'👥 CLASSIFICA E CODICE',fn:()=>{showLobby()}},{text:'🏠 ESCI DALLA STANZA',fn:backToModes,secondary:true}],'PAUSA ONLINE');return}showPause()}
 $('lobbyButton').addEventListener('click',showNetworkPause);
 
+window.__candyMapStats={candyCount:TOTAL_CANDY,buildingCount:townBuildings.length,enemyTypes:Object.keys(TYPES).length,extraEnemies:cityEnemySpawns.length,accessibleDoors:true};
 window.__candyBoot=true;
 loadCosmetics(); applyCharacterSkin();
 initModeMenu();
