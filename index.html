@@ -1079,7 +1079,7 @@ function backToModes(){if(network){try{sendNet({type:'leave'});network.close()}c
 let localLanLinks=[];
 async function refreshLanLinks(){
  if(location.protocol==='file:')return;
- try{const r=await fetch('/lan-info',{cache:'no-store'});if(!r.ok){const e=$('lanLinks');if(e)e.textContent='Server LAN non trovato. Avvia GIOCA_OFFLINE_CON_AMICI.bat sul PC host.';return}const info=await r.json();localLanLinks=Array.isArray(info.urls)?info.urls:[];
+ try{const r=await fetch('/lan-info',{cache:'no-store'});if(!r.ok){const e=$('lanLinks');if(e)e.textContent='Server LAN non trovato. Avvia node server.js sul PC host.';return}const info=await r.json();localLanLinks=Array.isArray(info.urls)?info.urls:[];
    const el=$('lanLinks');if(el){el.innerHTML=localLanLinks.length
     ?localLanLinks.map(u=>`<div style="margin:6px 0"><a href="${u}" style="color:#9defff;word-break:break-all" target="_blank">${u}</a></div>`).join('')
     :'<small>Non ho trovato un IP locale: controlla che tutti siano collegati allo stesso Wi-Fi.</small>';}
@@ -1097,15 +1097,15 @@ function isStaticGameLink(){const host=location.hostname.toLowerCase();return ['
 function showMultiplayerMenu(){
  if(isStaticGameLink()){
   uiModal('🌐 MULTIPLAYER: SERVE LA VERSIONE LAN',`<p>Questo link pubblico apre <b>solo il gioco singolo</b>, perché non ha un server multiplayer attivo.</p>
-  <div class="feature"><b>Per giocare con amici SENZA INTERNET:</b><p>1. Scarica e estrai lo ZIP sul PC principale.<p>2. Avvia <b>GIOCA_OFFLINE_CON_AMICI.bat</b> con doppio clic.</p><p>3. Gli amici aprono nel browser l'indirizzo locale indicato, come <b>http://192.168.1.23:3000</b>.</p><p>4. Crea la stanza e condividi il codice da 6 cifre.</p></div>
-  <div class="tile"><b>🎮 Versione LAN Windows</b><a href="${LAN_ZIP_RELEASE}" target="_blank" rel="noopener" style="color:#ffe68e">⬇ SCARICA IL GIOCO OFFLINE MULTIPLAYER</a></div>`,
+  <div class="feature"><b>Per giocare con amici SENZA INTERNET:</b><p>1. Scarica e estrai lo ZIP sul PC principale.<p>2. Installa Node.js dal sito ufficiale, apri il Prompt dei comandi nella cartella del gioco e scrivi <b>node server.js</b>.</p><p>3. Gli amici aprono nel browser l'indirizzo locale indicato, come <b>http://192.168.1.23:3000</b>.</p><p>4. Crea la stanza e condividi il codice da 6 cifre.</p></div>
+  <div class="tile"><b>🎮 Versione Windows senza eseguibili</b><a href="${LAN_ZIP_RELEASE}" target="_blank" rel="noopener" style="color:#ffe68e">⬇ SCARICA IL GIOCO OFFLINE MULTIPLAYER</a></div>`,
   [{text:'⬅ TORNA AL MENU',fn:initModeMenu,secondary:true}],'LAN OFFLINE NECESSARIA');
   return;
  }
  const codeFromLink=new URLSearchParams(location.search).get('room')||'';
  const safeCode=/^\d{6}$/.test(codeFromLink)?codeFromLink:'';
  uiModal('📡 MULTIGIOCATORE OFFLINE',`<p>Gioca da 2 fino a 12 PC connessi alla stessa rete Wi-Fi, router o hotspot, anche <b>senza collegamento Internet</b>. Gara di caramelle di 8 minuti: chi ne raccoglie di più vince, e gli scontri cartoon permettono di rubare il punteggio degli avversari.</p>
- <div class="feature">📶 <b>Server locale:</b> un PC avvia <b>GIOCA_OFFLINE_CON_AMICI.bat</b> (oppure lo script Mac/Linux), gli altri aprono l'indirizzo del PC host. Per il primo avvio bisogna preparare il motore 3D una sola volta, poi funziona offline.</div>
+ <div class="feature">📶 <b>Server locale:</b> un PC avvia <b>node server.js</b> (oppure lo script Mac/Linux), gli altri aprono l'indirizzo del PC host. Il motore 3D è già incluso e la versione Windows trasparente non contiene file EXE né BAT.</div>
  <div class="tile"><b>🔗 Indirizzi locali per gli amici</b><div id="lanLinks" style="margin-top:8px;line-height:1.5">Rilevamento indirizzi della rete...</div></div>
  <div class="tiles"><div class="tile"><b>🏠 CREA STANZA</b><span>Scegli il tuo nome per creare un codice di 6 cifre, poi condividi il link con gli amici.</span><input class="field" id="newName" maxlength="20" placeholder="Il tuo nome" value="Giocatore"></div>
  <div class="tile"><b>🔑 ENTRA NELLA STANZA</b><span>Inserisci il codice oppure apri il link d'invito dell'amico.</span><input class="field" id="joinName" maxlength="20" placeholder="Il tuo nome" value="Giocatore"><input class="field joinCode" id="joinCode" type="text" maxlength="6" inputmode="numeric" placeholder="123456" value="${safeCode}"></div></div>
@@ -1114,10 +1114,10 @@ function showMultiplayerMenu(){
  refreshLanLinks();
 }
 function openRoom(method){if(isStaticGameLink()){showMultiplayerMenu();return}let name=String($(method==='create'?'newName':'joinName')?.value||'Giocatore').trim().slice(0,20)||'Giocatore';let code=String($('joinCode')?.value||'').trim();if(method==='join'&&!/^\d{6}$/.test(code)){const x=$('serverStatus');if(x)x.textContent='⚠️ Inserisci un codice di esattamente 6 cifre.';return}playerName=name;
- if(location.protocol==='file:'){uiModal('⚠️ Server necessario',`<p>Apri una finestra del terminale dentro la cartella del gioco ed esegui <b>GIOCA_OFFLINE_CON_AMICI.bat</b>, poi vai su <b>http://localhost:3000</b>. Per giocare offline sulla stessa rete Wi-Fi, lascia aperto il server sul PC host.</p>`,[{text:'⬅ TORNA',fn:showMultiplayerMenu}],'CONNESSIONE ONLINE');return}
+ if(location.protocol==='file:'){uiModal('⚠️ Server necessario',`<p>Apri una finestra del terminale dentro la cartella del gioco ed esegui <b>node server.js</b>, poi vai su <b>http://localhost:3000</b>. Per giocare offline sulla stessa rete Wi-Fi, lascia aperto il server sul PC host.</p>`,[{text:'⬅ TORNA',fn:showMultiplayerMenu}],'CONNESSIONE ONLINE');return}
  uiModal('🔌 Connessione alla stanza',`<p>Collegamento al server in corso…</p>`,[{text:'⬅ ANNULLA',fn:showMultiplayerMenu,secondary:true}],'ONLINE');if(network)try{network.close()}catch(e){};
  try{network=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws')}catch(e){connectionError('Il browser non supporta questa connessione.');return}
- let socket=network;socket.onopen=()=>{if(network!==socket)return;sendNet({type:method,name,code})};socket.onmessage=e=>{if(network!==socket)return;let msg;try{msg=JSON.parse(e.data)}catch(e){return}handleNet(msg)};socket.onerror=()=>{if(network===socket)connectionError('Server LAN non raggiungibile. Sul PC principale apri GIOCA_OFFLINE_CON_AMICI.bat, e usa l’indirizzo http://192.168...:3000 indicato nella finestra nera.')};socket.onclose=()=>{if(network!==socket)return;netReady=false;if(onlineRoom){onlineRoom=null;connectionError('Connessione alla stanza interrotta.');}};
+ let socket=network;socket.onopen=()=>{if(network!==socket)return;sendNet({type:method,name,code})};socket.onmessage=e=>{if(network!==socket)return;let msg;try{msg=JSON.parse(e.data)}catch(e){return}handleNet(msg)};socket.onerror=()=>{if(network===socket)connectionError('Server LAN non raggiungibile. Sul PC principale esegui node server.js dal Prompt dei comandi, poi usa l’indirizzo http://192.168...:3000 mostrato nella finestra.')};socket.onclose=()=>{if(network!==socket)return;netReady=false;if(onlineRoom){onlineRoom=null;connectionError('Connessione alla stanza interrotta.');}};
 }
 function connectionError(message){uiModal('⚠️ Multiplayer non collegato',`<p>${escapeHTML(message)}</p><p class="smalltext">Per giocare offline con amici sulla stessa rete, un PC deve restare acceso come server locale; tutti devono aprire il suo link. Controlla il firewall se non vi trovate.</p>`,[{text:'⬅ RIPROVA',fn:showMultiplayerMenu},{text:'🏠 MENU',fn:initModeMenu,secondary:true}],'CONNESSIONE');}
 function showLobby(){
