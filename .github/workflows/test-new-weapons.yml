@@ -1,0 +1,70 @@
+name: Test four Candy Chaos weapons
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/test-new-weapons.yml
+  workflow_dispatch:
+jobs:
+  weapons-in-chrome:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install browser tools
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save playwright-core@1.56.1
+      - name: Start source-only LAN game and test 24 weapons
+        shell: bash
+        run: |
+          set -euo pipefail
+          node server.js >/tmp/candy-weapons.log 2>&1 &
+          HOST_PID=$!
+          trap 'kill "$HOST_PID" 2>/dev/null || true' EXIT
+          sleep 3
+          node - <<'NODE'
+          const {chromium}=require('playwright-core');
+          const assert=require('node:assert/strict');
+          async function main(){
+            const browser=await chromium.launch({executablePath:'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader']});
+            const page=await browser.newPage({viewport:{width:1440,height:960}});
+            const errors=[];let external=0;
+            page.on('pageerror',e=>{errors.push(e.message);console.error('ERROR_IN_GAME',e.stack)});
+            await page.route('**/*',route=>{
+              const u=new URL(route.request().url());
+              if(u.hostname==='localhost'||u.hostname==='127.0.0.1')route.continue();
+              else {external++;route.abort()}
+            });
+            try{
+              await page.goto('http://127.0.0.1:3000/',{waitUntil:'domcontentloaded',timeout:60000});
+              await page.waitForFunction(()=>window.__candyBoot===true,null,{timeout:75000});
+              const names=await page.evaluate(()=>window.__candyWeaponCatalog?.map(w=>w.name));
+              console.log('WEAPON_CATALOG',JSON.stringify(names));
+              assert.equal(names.length,24);
+              for(const n of ['Spara Cacca','RPG Caramellato','Lancia Joy-Con Switch','AK-47 Cartoon'])assert.ok(names.includes(n));
+              await page.locator('#playCard').click({timeout:25000});
+              await page.locator('#creativeCard').click({timeout:25000});
+              assert.equal(await page.locator('#modal').evaluate(e=>e.classList.contains('hidden')),true);
+              await page.keyboard.press('b');
+              for(const [idx,name] of [[20,'Spara Cacca'],[21,'RPG Caramellato'],[22,'Lancia Joy-Con Switch'],[23,'AK-47 Cartoon']]){
+                await page.locator('.pickWeapon[data-w="'+idx+'"]').click({timeout:25000});
+                const label=await page.locator('#weaponTitle').textContent();
+                assert.ok(label.includes(name),'Weapon not equipped: '+name);
+                const before=await page.evaluate(()=>window.__candyShotCount||0);
+                await page.evaluate(()=>document.querySelector('#game canvas').dispatchEvent(new MouseEvent('mousedown',{button:0,bubbles:true})));
+                await page.waitForFunction(x=>window.__candyLastFiredWeapon===x.idx&&(window.__candyShotCount||0)>x.before,{idx,before},{timeout:20000});
+                await page.evaluate(()=>window.dispatchEvent(new MouseEvent('mouseup',{button:0,bubbles:true})));
+                console.log('WEAPON_EQUIP_AND_FIRE_OK',idx,name);
+                if(idx!==23)await page.keyboard.press('b');
+              }
+              assert.deepEqual(errors,[],'JavaScript game errors');
+              assert.equal(external,0,'Offline game made an Internet request');
+              console.log('PASS: all four 3D weapons equip and fire in real Chromium; offline browser; 24 total weapons');
+            }finally{await browser.close()}
+          }
+          main().then(()=>process.exit(0),e=>{console.error('TEST FAILED:',e);process.exit(1)});
+          NODE
