@@ -1,4 +1,4 @@
-name: Test X cheats in browser and multiplayer
+name: Test X cheats in browser and multiplayer V2
 on:
   push:
     branches: [main]
