@@ -1,0 +1,77 @@
+name: Publish Candy Chaos LAN V3
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/release-lan-v3.yml]
+permissions:
+  contents: write
+jobs:
+  build-portable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate multiplayer server
+        run: |
+          set -euo pipefail
+          node --check server.js
+          test "$(wc -c < index.html)" -gt 800000
+          grep -q 'function isStaticGameLink' index.html
+          npm install --no-save ws@8
+          node server.js >/tmp/server.log 2>&1 &
+          PID=$!
+          trap 'kill "$PID" 2>/dev/null || true' EXIT
+          sleep 2
+          node - <<'NODE'
+          const WebSocket=require('ws'),assert=require('node:assert/strict');
+          const url='ws://127.0.0.1:3000/ws';
+          const wait=(s,type)=>new Promise((resolve,reject)=>{
+            const timer=setTimeout(()=>reject(new Error('Timeout '+type)),5000);
+            const fn=data=>{let m;try{m=JSON.parse(data)}catch{return}if(m.type===type){clearTimeout(timer);s.off('message',fn);resolve(m)}};
+            s.on('message',fn);
+          });
+          async function main(){
+            const h=await(await fetch('http://127.0.0.1:3000/health')).json();
+            assert.equal(h.candies,195);
+            const a=new WebSocket(url),b=new WebSocket(url);
+            await Promise.all([new Promise(r=>a.once('open',r)),new Promise(r=>b.once('open',r))]);
+            let pa=wait(a,'joined');a.send(JSON.stringify({type:'create',name:'PC Uno'}));
+            const room=await pa;assert.match(room.code,/^\\d{6}$/);
+            let pb=wait(b,'joined');b.send(JSON.stringify({type:'join',code:room.code,name:'PC Due'}));
+            assert.equal((await pb).code,room.code);
+            pa=wait(a,'matchStart');pb=wait(b,'matchStart');
+            a.send(JSON.stringify({type:'start'}));
+            await Promise.all([pa,pb]);
+            pa=wait(a,'quizPenalty');a.send(JSON.stringify({type:'quizWrong'}));
+            assert.equal((await pa).candy,0);
+            console.log('PASS: 2 PC simulated, room code, join, start, 195 candies, math penalty.');
+            a.close();b.close();
+          }
+          main().then(()=>process.exit(0),e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: Bundle Windows portable game
+        run: |
+          set -euo pipefail
+          mkdir -p dist/Candy_Chaos_3D_LAN
+          cp index.html server.js GIOCA_OFFLINE_CON_AMICI.bat LEGGIMI_GIOCO_OFFLINE.txt LICENZA_THREE.txt dist/Candy_Chaos_3D_LAN/
+          curl --retry 3 -fLsS 'https://nodejs.org/dist/v22.16.0/node-v22.16.0-win-x64.zip' -o node.zip
+          unzip -p node.zip 'node-v22.16.0-win-x64/node.exe' > dist/Candy_Chaos_3D_LAN/node.exe
+          test "$(wc -c < dist/Candy_Chaos_3D_LAN/node.exe)" -gt 40000000
+          cd dist
+          zip -q -r -9 Candy_Chaos_3D_LAN_MULTIPLAYER_V3.zip Candy_Chaos_3D_LAN
+      - name: Publish direct ZIP download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILE='dist/Candy_Chaos_3D_LAN_MULTIPLAYER_V3.zip'
+          if gh release view lan-multiplayer-v3 >/dev/null 2>&1; then
+            gh release upload lan-multiplayer-v3 "$FILE" --clobber
+          else
+            gh release create lan-multiplayer-v3 "$FILE" --title 'Candy Chaos 3D Multiplayer LAN V3' --notes 'PC diversi su Wi-Fi/hotspot senza Internet. Estrai, apri GIOCA_OFFLINE_CON_AMICI.bat sul PC host, condividi l’indirizzo http://IP:3000 con gli amici. Include 15 edifici, 10 nuovi nemici, 195 caramelle.'
+          fi
+          echo 'PUBLISHED: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/lan-multiplayer-v3/Candy_Chaos_3D_LAN_MULTIPLAYER_V3.zip'
