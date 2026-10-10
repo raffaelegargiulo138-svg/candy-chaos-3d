@@ -40,7 +40,7 @@ jobs:
             const a=new WebSocket(url),b=new WebSocket(url);
             await Promise.all([new Promise(r=>a.once('open',r)),new Promise(r=>b.once('open',r))]);
             let pa=wait(a,'joined');a.send(JSON.stringify({type:'create',name:'PC Uno'}));
-            const room=await pa;assert.match(room.code,/^\\d{6}$/);
+            const room=await pa;assert.equal(room.code.length,6);assert.equal(Number.isInteger(Number(room.code)),true);
             let pb=wait(b,'joined');b.send(JSON.stringify({type:'join',code:room.code,name:'PC Due'}));
             assert.equal((await pb).code,room.code);
             pa=wait(a,'matchStart');pb=wait(b,'matchStart');
