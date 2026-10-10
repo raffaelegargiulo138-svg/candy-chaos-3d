@@ -45,8 +45,21 @@ body.ads #aimStatus{display:block}#aimRange{font-weight:450;letter-spacing:.02em
 <div id="weapon" class="glass"><strong id="weaponTitle">🧸 Orsetti gommosi</strong><span id="weaponInfo">Q/rotella cambia · click destro mira · click sinistro usa</span></div>
 <div id="controls" class="glass"><kbd>WASD</kbd> muovi · <kbd>Mouse</kbd> visuale · <kbd>Shift</kbd> sprint / corsa sul muro · <kbd>Spazio</kbd> doppio salto · <kbd>Ctrl</kbd> scivolata · <kbd>V</kbd> scavalca · <kbd>F</kbd> rampino · <kbd>R</kbd> scatto · <kbd>E</kbd> interagisci · <kbd>B</kbd> armi · <kbd>J</kbd> 20 finali · <kbd>M</kbd> mappa · <kbd>G</kbd> cambia mira · <kbd>P</kbd> qualità</div>
 <div id="cross">✦</div><div id="context"></div><div id="toast"></div><div id="areaPopup"></div>
-<div id="modal"><div id="panel" class="glass"><div id="modalContent"><div class="eyebrow">UN NUOVO CAPITOLO</div><h1>🍬 CANDY CHAOS 3D: ULTIMATE DISTRICT</h1><p>Un'avventura 3D in terza persona: esplora aule, biblioteca, palestra, parco, negozio di dolci, quartieri e sotterranei. Affronta personaggi fantastici con poteri differenti, supera percorsi parkour e risolvi le operazioni dei libri per sbloccare l'equipaggiamento.</p><div class="feature">🌈 Gli scontri sono comici e non cruenti: quando vengono battuti, gli avversari spariscono in una nuvola di coriandoli.</div><p><b>20 finali:</b> recupera tutte le caramelle, torna a casa oppure completa sfide segrete. Premi <b>J</b> per vedere condizioni e finali disponibili.</p></div><div class="actions" id="modalActions"><button class="btn" id="startButton">▶ INIZIA L'AVVENTURA</button></div></div></div>
-<script>window.__candyBoot=false;setTimeout(()=>{if(!window.__candyBoot){const content=document.getElementById("modalContent");if(content){content.innerHTML="<h1>⚠️ Motore 3D non caricato</h1><p>Non riesco ad avviare la grafica 3D. Estrai il file ZIP, usa <b>GIOCA_SUBITO_WINDOWS.bat</b> e verifica che il motore grafico sia stato preparato. Per giocare senza Internet esegui una volta <b>PREPARA_OFFLINE_WINDOWS.bat</b> con Internet.</p>";const b=document.getElementById("startButton");if(b)b.disabled=true}}},12000)</script>
+<div id="modal"><div id="panel" class="glass"><div id="modalContent"><div class="eyebrow">AVVIO DEL GIOCO</div><h1>🍬 CANDY CHAOS 3D</h1><p>Caricamento della città, delle armi e dei personaggi in corso...</p><div class="feature">La schermata delle modalità apparirà automaticamente.</div></div><div class="actions" id="modalActions"><button class="btn secondary" disabled>⌛ CARICAMENTO...</button></div></div></div>
+<script>
+window.__candyBoot=false;
+window.candyStartupError=function(message){
+  if(window.__candyBoot)return;
+  const content=document.getElementById('modalContent');
+  const actions=document.getElementById('modalActions');
+  if(content){content.innerHTML='<div class="eyebrow">ERRORE DI AVVIO</div><h1>⚠️ Il gioco non è partito</h1><p>Premi Riprova. Se il problema continua, usa Chrome o Edge aggiornato.</p><p class="smalltext" id="bootErrorDetails"></p>';const detail=document.getElementById('bootErrorDetails');if(detail)detail.textContent=message||'Errore sconosciuto';}
+  if(actions)actions.innerHTML='<button class="btn" onclick="location.reload()">↻ RIPROVA</button>';
+};
+window.addEventListener('error',function(e){if(!window.__candyBoot)window.candyStartupError('JavaScript: '+String(e.message||'caricamento non riuscito'));});
+window.addEventListener('unhandledrejection',function(e){if(!window.__candyBoot)window.candyStartupError('Modulo: '+String(e.reason?.message||e.reason||'errore sconosciuto'));});
+setTimeout(function(){if(!window.__candyBoot){const info=document.getElementById('modalContent');if(info&&!document.getElementById('bootErrorDetails')){info.innerHTML='<div class="eyebrow">CARICAMENTO LENTO</div><h1>🍬 Sto caricando il gioco...</h1><p>Se la pagina non parte, verifica che WebGL sia disponibile nel browser.</p>';}}},13000);
+setTimeout(function(){if(!window.__candyBoot)window.candyStartupError('Avvio non completato entro 45 secondi');},45000);
+</script>
 <script type="module">
 // Prova prima il motore locale (offline); se non e presente prova una CDN (con Internet).
 let THREE;
@@ -57,9 +70,9 @@ try {
     THREE = await import('https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.1/three.module.js');
     console.info('Candy Chaos: motore scaricato online; prepara three.module.js per giocare offline.');
   } catch (onlineError) {
-    window.__candyBoot = true;
+    window.candyStartupError('Motore Three.js non caricato: ' + String(onlineError));
     const box = document.getElementById('modalContent');
-    if (box) box.innerHTML = '<h1>Il motore 3D non e disponibile</h1><p>Per giocare senza Internet, esegui <b>PREPARA_OFFLINE_WINDOWS.bat</b> almeno una volta con Internet. Per il multiplayer, avvia <b>GIOCA_SUBITO_WINDOWS.bat</b> dopo aver estratto lo ZIP.</p><p>Se sei online, verifica di non bloccare cdnjs.cloudflare.com oppure ripeti la preparazione.</p>';
+    // The error panel above already shows the retry action.
     throw new Error('Three.js locale non trovato e motore online non raggiungibile: ' + String(onlineError));
   }
 }
