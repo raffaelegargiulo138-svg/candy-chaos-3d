@@ -24,6 +24,26 @@ function candyLocations(){
   for(let i=0;i<6;i++)a.push([-28+(i%3)*11,-91+Math.floor(i/3)*11]);
   for(let i=0;i<5;i++)a.push([58+(i%3)*13,-94+Math.floor(i/3)*14]);
   for(let i=0;i<4;i++)a.push([-29+(i%2)*23,66+Math.floor(i/2)*11]);
+  // Extra 114 candy: six around each of the 15 town buildings, plus 24 on the main road.
+  // Keep these positions and their ordering identical to index.html.
+  const town=[
+    [-92,108,12,10,'north'],[-46,108,12,10,'north'],[0,108,15,11,'north'],
+    [46,108,13,10,'north'],[92,108,13,10,'north'],
+    [-108,86,10,14,'east'],[-108,44,10,14,'east'],[-108,0,10,14,'east'],
+    [-108,-44,10,14,'east'],[-108,-88,10,14,'east'],
+    [108,86,10,14,'west'],[108,44,10,14,'west'],[108,0,10,14,'west'],
+    [108,-44,10,14,'west'],[108,-88,10,14,'west']
+  ];
+  for(const [x,z,w,d,face] of town){
+    const xx=Math.min(w*.25,2.3),zz=Math.min(d*.22,2.2);
+    for(const sx of [-1,1])for(const sz of [-1,1])a.push([x+sx*xx,z+sz*zz]);
+    const road=face==='north'?[0,-d/2-1.6]:face==='south'?[0,d/2+1.6]:face==='east'?[w/2+1.6,0]:[-w/2-1.6,0];
+    for(const side of [-1,1])a.push([x+road[0]+(road[0]?0:side*1.4),z+road[1]+(road[1]?0:side*1.4)]);
+  }
+  for(let i=0;i<24;i++){
+    const t=-75+i*6.4;
+    a.push([t,39+(i%2?1.8:-1.8)]);
+  }
   return a;
 }
 const CANDIES=candyLocations();
@@ -100,6 +120,15 @@ function message(c,msg){
   if(msg.type==='start'){start(c);return}
   if(r.stage!=='game')return;
   if(Date.now()>=r.endAt){finish(r);return}
+  if(msg.type==='quizWrong'){
+    const now=Date.now();
+    if(p.lastQuizWrong && now-p.lastQuizWrong<280)return;
+    p.lastQuizWrong=now;
+    p.candy=Math.max(0,p.candy-1);
+    send(c,{type:'quizPenalty',candy:p.candy,amount:1});
+    update(r);
+    return;
+  }
   if(msg.type==='move'){
     const [x,y,z,yaw,pitch]=[msg.x,msg.y,msg.z,msg.yaw,msg.pitch].map(Number);
     if(![x,y,z,yaw,pitch].every(Number.isFinite)||Math.abs(x)>120||Math.abs(z)>120||y<-.5||y>55)return;
