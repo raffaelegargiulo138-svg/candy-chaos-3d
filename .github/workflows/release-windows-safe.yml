@@ -1,0 +1,159 @@
+name: Windows safe source-only LAN
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release-windows-safe.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+
+jobs:
+  test-on-windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test local LAN server on real Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          node --version
+          node --check server.js
+          $nodePath = (Get-Command node).Source
+          $proc = Start-Process -FilePath $nodePath -ArgumentList 'server.js' -WorkingDirectory (Get-Location).Path -WindowStyle Hidden -PassThru
+          try {
+            Start-Sleep -Seconds 3
+            $health = Invoke-RestMethod -Uri 'http://127.0.0.1:3000/health'
+            if (-not $health.ok -or $health.candies -ne 195) {
+              throw "Unexpected Windows server health: $($health | ConvertTo-Json -Compress)"
+            }
+            $headers = (Invoke-WebRequest -Uri 'http://127.0.0.1:3000/' -Method Head).Headers
+            if (-not ($headers['X-Content-Type-Options'] -eq 'nosniff')) {
+              throw 'Missing security headers on Windows'
+            }
+            Write-Host 'WINDOWS TEST OK: real Windows, Node LTS, LAN server and security headers'
+          } finally {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          }
+
+  package-safe:
+    needs: test-on-windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate Node and install temporary test tools
+        run: |
+          set -euo pipefail
+          node --check server.js
+          test "$(wc -c < index.html)" -gt 800000
+          test "$(wc -c < server.js)" -gt 10000
+          npm install --no-save ws@8
+      - name: Test two players and hostile origins
+        shell: bash
+        run: |
+          set -euo pipefail
+          node server.js >/tmp/candy-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          sleep 2
+          node - <<'NODE'
+          const assert=require('node:assert/strict');
+          const http=require('node:http');
+          const WS=require('ws');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          function next(ws,type){
+            return new Promise((resolve,reject)=>{
+              const timer=setTimeout(()=>{ws.off('message',onMsg);reject(new Error('Timeout '+type))},5000);
+              function onMsg(raw){let msg;try{msg=JSON.parse(raw)}catch{return}
+                if(msg.type===type){clearTimeout(timer);ws.off('message',onMsg);resolve(msg)}
+              }
+              ws.on('message',onMsg);
+            });
+          }
+          async function main(){
+            const response=await fetch('http://127.0.0.1:3000/health');
+            assert.equal(response.status,200);
+            const health=await response.json();
+            assert.equal(health.candies,195);
+            assert.equal(response.headers.get('x-content-type-options'),'nosniff');
+            const h=await fetch('http://127.0.0.1:3000/');
+            assert.equal(h.status,200);
+            assert.match(h.headers.get('content-security-policy'),/frame-ancestors 'none'/);
+            assert.match(await h.text(),/CANDY_SELF_CONTAINED_V3/);
+            const badHost=await new Promise((resolve,reject)=>{
+              const q=http.get({hostname:'127.0.0.1',port:3000,path:'/health',headers:{Host:'evil.test:3000'}},r=>{r.resume();resolve(r.statusCode)});
+              q.on('error',reject);
+            });
+            assert.equal(badHost,403,'Reject DNS rebinding Host header');
+            const badOrigin=await new Promise((resolve,reject)=>{
+              const evil=new WS('ws://127.0.0.1:3000/ws',{origin:'https://evil.test'});
+              const timeout=setTimeout(()=>{evil.terminate();reject(new Error('Origin check timed out'))},5000);
+              evil.once('open',()=>{clearTimeout(timeout);reject(new Error('Wrong Origin was accepted'))});
+              evil.once('unexpected-response',(_,r)=>{clearTimeout(timeout);r.resume();resolve(r.statusCode)});
+              evil.once('error',()=>{clearTimeout(timeout);resolve(403)});
+            });
+            assert.equal(badOrigin,403,'Reject a browser from another website');
+            const a=new WS('ws://127.0.0.1:3000/ws',{origin:'http://127.0.0.1:3000'});
+            const b=new WS('ws://127.0.0.1:3000/ws',{origin:'http://127.0.0.1:3000'});
+            await Promise.all([new Promise(ok=>a.once('open',ok)),new Promise(ok=>b.once('open',ok))]);
+            let pa=next(a,'joined');a.send(JSON.stringify({type:'create',name:'PC 1'}));const room=await pa;
+            assert.match(room.code,/^[0-9]{6}$/);
+            let pb=next(b,'joined');b.send(JSON.stringify({type:'join',name:'PC 2',code:room.code}));
+            const guest=await pb;assert.equal(guest.code,room.code);
+            pa=next(a,'matchStart');pb=next(b,'matchStart');
+            a.send(JSON.stringify({type:'start'}));await Promise.all([pa,pb]);
+            pa=next(a,'quizPenalty');a.send(JSON.stringify({type:'quizWrong'}));
+            assert.equal((await pa).candy,0);
+            a.close();b.close();
+            console.log('PASS: 2 LAN clients, protected Host and Origin, math penalty, offline 3D engine, security headers');
+          }
+          main().then(()=>process.exit(0),e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: Create auditable text-only Windows ZIP and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACK='dist/Candy_Chaos_3D_WINDOWS_SICURO'
+          mkdir -p "$PACK"
+          cp index.html server.js LEGGIMI_WINDOWS_SICURO.txt LICENZA_THREE.txt "$PACK/"
+          if find "$PACK" -type f | grep -Ei '\.(exe|msi|dll|bat|cmd|ps1|vbs|scr|jar)$'; then
+            echo 'ERROR: Unsafe executable or script present in Windows-safe distribution'
+            exit 1
+          fi
+          (cd "$PACK"; sha256sum index.html server.js LEGGIMI_WINDOWS_SICURO.txt LICENZA_THREE.txt > SHA256_FILE.txt)
+          (cd dist; zip -q -r -9 Candy_Chaos_3D_WINDOWS_SICURO.zip Candy_Chaos_3D_WINDOWS_SICURO)
+          (cd dist; sha256sum Candy_Chaos_3D_WINDOWS_SICURO.zip > Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256)
+          unzip -l dist/Candy_Chaos_3D_WINDOWS_SICURO.zip
+          cat dist/Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256
+      - name: Publish verifiable Windows-safe release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG='windows-safe-v1'
+          ZIP='dist/Candy_Chaos_3D_WINDOWS_SICURO.zip'
+          SUM='dist/Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP" "$SUM" --clobber
+          else
+            gh release create "$TAG" "$ZIP" "$SUM" --title 'Candy Chaos 3D - Windows senza EXE (LAN Offline)' --notes 'Nuovo pacchetto Windows con SOLO file di testo HTML/JS e licenza, senza eseguibili, script BAT/CMD o installatori. Da PC host, installare Node.js LTS soltanto dal sito ufficiale nodejs.org, quindi eseguire node server.js nel Prompt dei comandi. Server limitato alla rete privata; HTTP su Wi-Fi non e cifrato. Il download non e firmato/certificato da Microsoft: rispettare eventuali avvisi di Defender/SmartScreen. Hash SHA256 del pacchetto allegato.'
+          fi
+          echo 'DOWNLOAD: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/windows-safe-v1/Candy_Chaos_3D_WINDOWS_SICURO.zip'
+          echo 'CHECKSUM: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/windows-safe-v1/Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Candy-Chaos-Windows-Source-Only
+          path: |
+            dist/Candy_Chaos_3D_WINDOWS_SICURO.zip
+            dist/Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256
+          if-no-files-found: warn
