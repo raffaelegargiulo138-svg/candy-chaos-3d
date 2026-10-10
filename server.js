@@ -72,7 +72,7 @@ function lanIPs(){
 }
 const urls=()=>lanIPs().map(x=>'http://'+x+':'+PORT);
 const publicPlayers=r=>[...r.players.values()].map(p=>({id:p.id,name:p.name,x:p.x,y:p.y,z:p.z,yaw:p.yaw,hp:p.hp,weapon:p.weapon,candy:p.candy,host:p.id===r.host}));
-const view=r=>({type:'state',code:r.code,hostId:r.host,stage:r.stage,players:publicPlayers(r),taken:[...r.taken],endAt:r.endAt,now:Date.now()});
+const view=r=>({type:'state',code:r.code,hostId:r.host,stage:r.stage,players:publicPlayers(r),taken:[...r.taken],endAt:r.endAt,cheats:{freeze:!!r.cheats?.freeze},now:Date.now()});
 function send(c,payload){
   if(!c||c.closed)return;
   try{
@@ -89,7 +89,7 @@ function sixDigits(){for(let i=0;i<1500;i++){const s=String(crypto.randomInt(100
 function join(c,code,name,create){
   if(c.room)return send(c,{type:'error',message:'Hai già una stanza.'});
   let r;
-  if(create){if(rooms.size>=MAX_ROOMS)return send(c,{type:'error',message:'Limite di stanze raggiunto.'});code=sixDigits();r={code,host:null,stage:'lobby',taken:new Set(),players:new Map(),endAt:0};rooms.set(code,r)}
+  if(create){if(rooms.size>=MAX_ROOMS)return send(c,{type:'error',message:'Limite di stanze raggiunto.'});code=sixDigits();r={code,host:null,stage:'lobby',taken:new Set(),players:new Map(),endAt:0,cheats:{freeze:false}};rooms.set(code,r)}
   else {
     if(!/^\d{6}$/.test(String(code||'')))return send(c,{type:'error',message:'Il codice deve avere sei cifre.'});
     r=rooms.get(code);
@@ -107,13 +107,13 @@ function leave(c){
   const r=c.room;if(!r)return;
   r.players.delete(c.id);c.room=null;c.id=null;
   if(!r.players.size){rooms.delete(r.code);return}
-  if(!r.players.has(r.host)){r.host=r.players.keys().next().value;everyone(r,{type:'notice',message:'Nuovo creatore della stanza.'})}
+  if(!r.players.has(r.host)){r.host=r.players.keys().next().value;r.cheats.freeze=false;everyone(r,{type:'notice',message:'Nuovo creatore della stanza. Trucchi condivisi disattivati.'})}
   update(r);
 }
 function close(c){if(c.closed)return;c.closed=true;leave(c);sockets.delete(c);try{c.socket.destroy()}catch(e){}}
 function start(c){
   const r=c.room;if(!r||r.host!==c.id||r.stage!=='lobby')return;
-  r.stage='game';r.endAt=Date.now()+MATCH_MS;r.taken.clear();
+  r.stage='game';r.endAt=Date.now()+MATCH_MS;r.taken.clear();r.cheats.freeze=false;
   let i=0;for(const p of r.players.values()){p.x=(i%4)*2-3;p.z=27+Math.floor(i/4)*2;p.y=0;p.hp=100;p.candy=0;p.weapon=0;p.immune=Date.now()+3000;i++}
   everyone(r,{type:'matchStart',endAt:r.endAt,taken:[],players:publicPlayers(r)});update(r);
 }
@@ -135,6 +135,34 @@ function message(c,msg){
   if(msg.type==='start'){start(c);return}
   if(r.stage!=='game')return;
   if(Date.now()>=r.endAt){finish(r);return}
+  // The game host alone can apply global room cheats. Clients cannot cheat via WebSocket.
+  if(msg.type==='hostCheat'){
+    if(r.host!==c.id)return send(c,{type:'notice',message:'Solo il creatore della stanza può usare i trucchi.'});
+    const action=String(msg.action||'');
+    if(action==='freeze'){
+      r.cheats.freeze=!!msg.enabled;
+      everyone(r,{type:'cheatState',freeze:r.cheats.freeze,by:p.name});
+      everyone(r,{type:'notice',message:'🎮 Il creatore ha '+(r.cheats.freeze?'attivato FREEZE':'disattivato FREEZE')});
+      update(r);
+      return;
+    }
+    if(action==='killall'){
+      let count=0,stolen=0;
+      const now=Date.now();
+      for(const q of r.players.values()){
+        if(q.id===c.id)continue;
+        count++;stolen+=q.candy;q.candy=0;q.hp=100;
+        q.x=0;q.y=0;q.z=27;q.immune=now+4000;q.lastMove=0;
+        everyone(r,{type:'knockout',attacker:p.id,victim:q.id,attackerName:p.name,victimName:q.name,stolen:0,attackerCandy:p.candy,hostCheat:true});
+      }
+      p.candy+=stolen;
+      everyone(r,{type:'notice',message:'💥 KILL ALL del creatore! '+count+' avversari riportati allo spawn.'});
+      update(r);
+      return;
+    }
+    return send(c,{type:'notice',message:'Trucco sconosciuto'});
+  }
+  if(r.cheats.freeze && p.id!==r.host && (msg.type==='move'||msg.type==='fire'||msg.type==='pickup'))return;
   if(msg.type==='quizWrong'){
     const now=Date.now();
     if(p.lastQuizWrong && now-p.lastQuizWrong<280)return;
