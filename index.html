@@ -226,6 +226,198 @@ addLabel('DISTRETTO BIANCO',96,18,10,'#f2fbff',.86);
 
 
 // Enterable town district: 15 new buildings with real rooms such as houses, bank and shops.
+// Candy Chaos architecture V4: real-looking walk-in shops, furnished rooms and roofs.
+// Everything below is visual, never added to "solids": doorways remain passable.
+const architectureRoofs=[], architectureBuildings=[];
+const ARCH_THEME={
+ house:['#f2c7be','#ae615f','#ffe6d5'],villa:['#f1e2ce','#9c7565','#f5eed6'],
+ bank:['#d3e7f6','#537ea1','#f9e6b2'],market:['#f8dda5','#5a936b','#edffcd'],
+ cafe:['#eac49f','#a66a4b','#fbe8c6'],clinic:['#d9f2ec','#659ea9','#f4fff9'],
+ arcade:['#dbc8f6','#7350a4','#fce3ff'],post:['#e4d5b6','#a67a48','#fff0d8'],
+ toy:['#f5cedd','#c8699b','#ffebf1'],library:['#d5dec8','#697e69','#f5f0d7'],
+ bakery:['#efd2a9','#b47b4e','#fff1d8'],boutique:['#e8cfe8','#99729e','#fff0fa'],
+ gym:['#cbd8e6','#4b7297','#e9f4fd']
+};
+function architecturalDetail(x,z,w,d,h,name,kind,face){
+ const theme=ARCH_THEME[kind]||ARCH_THEME.house;
+ const wall=mat(theme[0],.86),accent=mat(theme[1],.61),pale=mat(theme[2],.75);
+ const timber=mat('#906943',.73),metal=mat('#4b626d',.35,.36);
+ const brass=mat('#f0cf85',.28,.5),plant=mat('#4c9b5e',.83),ink=mat('#283341',.42);
+ const warm=glow('#ffe7ac',.55),cool=glow('#91f8ff',.55);
+ const axisZ=face==='north'||face==='south',out=face==='north'||face==='west'?-1:1;
+ const length=axisZ?w:d,door=3.15;
+ let pieces=0,props=0;
+ const B=(xx,yy,zz,ww,hh,dd,material)=>{pieces++;return box(scene,xx,yy,zz,ww,hh,dd,material,false)};
+ const O=(xx,yy,zz,r,material)=>{pieces++;return ball(scene,xx,yy,zz,r,material)};
+ const C=(xx,yy,zz,r,hh,material)=>{pieces++;return cyl(scene,xx,yy,zz,r,r,hh,material)};
+ function F(p,y,offset,width,height,depth,material){
+  return axisZ?B(x+p,y,z+out*(d/2+offset),width,height,depth,material):
+    B(x+out*(w/2+offset),y,z+p,depth,height,width,material);
+ }
+ function nameplate(str,y,size,col){
+  let p=label(str,col||'#fff4d6',size||.36);
+  p.position.set(axisZ?x:x+out*(w/2+.63),y,axisZ?z+out*(d/2+.63):z);
+  scene.add(p);pieces++;
+ }
+ // Basement trim, pilasters, cornerstones and an ornamental upper cornice.
+ for(const sx of [-1,1])for(const sz of [-1,1]){
+  B(x+sx*(w/2-.20),h*.43,z+sz*(d/2-.20),.32,h*.83,.32,pale);
+  B(x+sx*(w/2-.20),h-.44,z+sz*(d/2-.20),.47,.29,.47,accent);
+ }
+ for(const zz of [z-d/2,z+d/2]){
+  B(x,.23,zz,w+.55,.42,.39,accent);
+  B(x,h-.15,zz,w+.58,.34,.43,pale);
+ }
+ for(const xx of [x-w/2,x+w/2]){
+  B(xx,.23,z,.39,.42,d+.55,accent);
+  B(xx,h-.15,z,.43,.34,d+.57,pale);
+ }
+ // Open front entry: a visible frame and parked glass doors to the sides.
+ for(const sg of [-1,1]){
+  F(sg*(door/2+.04),1.45,.21,.15,2.88,.18,pale);
+  F(sg*(door/2-.36),1.24,.28,.57,2.22,.085,M.glass);
+  F(sg*(door/2-.20),1.22,.35,.04,.17,.14,brass);
+ }
+ F(0,2.90,.24,door+.29,.25,.30,pale);
+ F(0,.08,.81,door+.38,.12,1.02,accent);
+ // Shop windows: actual tinted panes, mullions, stone sills, overhead lintels.
+ const wc=(door/2+length/2)/2,ww=Math.min(1.9,(length-door)/2-.6);
+ for(const sg of [-1,1]){
+  F(sg*wc,1.93,.28,ww,1.75,.16,ink);
+  F(sg*wc,1.93,.39,ww-.13,1.60,.07,M.glass);
+  F(sg*wc,1.93,.45,.064,1.62,.10,pale);
+  F(sg*wc,1.93,.45,ww-.13,.07,.10,pale);
+  F(sg*wc,1.00,.41,ww+.2,.18,.25,pale);
+  F(sg*wc,2.83,.41,ww+.25,.15,.23,pale);
+ }
+ // Three-dimensional shop sign, not only floating lettering.
+ F(0,h-.84,.34,length-.62,.71,.24,accent);
+ F(0,h-1.20,.45,length-.83,.085,.08,brass);
+ F(0,h-.48,.45,length-.83,.09,.08,brass);
+ nameplate(name.toUpperCase(),h-.84,.36);
+ for(const sg of [-1,1]){
+  let v=sg*(door/2+.56);
+  F(v,3.13,.51,.23,.31,.21,metal);
+  F(v,3.10,.64,.15,.19,.17,warm);
+  if(axisZ){C(x+v,.35,z+out*(d/2+.95),.24,.56,timber);O(x+v,.78,z+out*(d/2+.95),.36,plant);}
+  else{C(x+out*(w/2+.95),.35,z+v,.24,.56,timber);O(x+out*(w/2+.95),.78,z+v,.36,plant);}
+ }
+ // Side-window frames add depth and proper scale to both exterior walls.
+ for(const sg of [-1,1])for(const rel of [-.25,.27]){
+  const wx=x+sg*(w/2+.04),wz=z+rel*d;
+  B(wx,2.28,wz,.14,1.52,1.53,ink);
+  B(wx+sg*.08,2.28,wz,.05,1.36,1.38,M.glass);
+  B(wx+sg*.11,2.28,wz,.07,.07,1.49,pale);
+  B(wx,1.44,wz,.29,.13,1.67,pale);
+  B(wx,3.09,wz,.27,.15,1.67,pale);
+ }
+ // Exterior roofs are real pitched geometry or a modern flat roof with parapets.
+ // Roof material auto-fades when the camera/player is inside, preserving playability.
+ const roofMaterial=new THREE.MeshStandardMaterial({color:theme[1],roughness:.87,transparent:true,opacity:.86,depthWrite:false,side:THREE.DoubleSide});
+ const roofPanels=[];
+ if(['house','villa','bakery','cafe'].includes(kind)){
+  const ang=Math.atan2(1.15,w/2);
+  for(const sg of [-1,1]){
+   const roof=new THREE.Mesh(new THREE.BoxGeometry(w/2+.87,.20,d+1.18),roofMaterial.clone());
+   roof.position.set(x+sg*w/4,h+.67,z);roof.rotation.z=sg===1?-ang:ang;
+   scene.add(roof);pieces++;roofPanels.push(roof);
+   for(let j=0;j<5;j++){
+    const rx=x+sg*(.43+j*(w/2-.55)/5);
+    const ry=h+1.22-Math.abs(rx-x)/ (w/2)*1.15;
+    B(rx,ry+.09,z-d/2-.21,.065,.16,.26,pale);
+    B(rx,ry+.09,z+d/2+.21,.065,.16,.26,pale);
+   }
+  }
+  B(x,h+1.23,z,.27,.25,d+1.2,pale);
+ }else{
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(w+.25,.17,d+.25),roofMaterial);
+  roof.position.set(x,h+.18,z);scene.add(roof);roofPanels.push(roof);pieces++;
+  for(const sx of [-1,1])B(x+sx*w/2,h+.46,z,.31,.69,d+.55,pale);
+  for(const sz of [-1,1])B(x,h+.46,z+sz*d/2,w+.5,.69,.31,pale);
+  B(x,h+.35,z,Math.max(2,w*.27),.045,Math.max(2,d*.3),M.glass);
+ }
+ architectureRoofs.push({x,z,w,d,panels:roofPanels});
+ if(['market','cafe','bakery','toy','boutique','arcade'].includes(kind)){
+  F(0,3.30,.66,length-.42,.13,1.43,accent);
+  for(let j=0;j<9;j++)F((-4+j)*(length-.62)/9,3.16,1.34,(length-.62)/9,.26,.10,j%2?pale:accent);
+  F(0,3.45,.76,length-.27,.07,1.67,pale);
+ }
+ const L=x-w*.26,R=x+w*.26,BA=z-d*.28,FR=z+d*.26;
+ function table(tx,tz){B(tx,.83,tz,1.30,.17,.95,timber);for(const sg of [-1,1])B(tx+sg*.46,.42,tz,.12,.80,.13,metal);props++}
+ function shelf(tx,tz){B(tx,1.25,tz,1.72,2.34,.45,timber);for(const y of [.53,1.21,1.89])B(tx,y,tz+.30,1.82,.095,.55,pale);props++}
+ function counter(tx,tz){B(tx,.74,tz,2.35,1.32,.68,timber);B(tx,1.44,tz,2.49,.11,.92,pale);props++}
+ // Furnish each room by business type, with recognizable 3D objects.
+ if(kind==='cafe'){
+  counter(L,BA);B(L,1.86,BA,1.13,.77,.66,metal);B(L,2.17,BA+.36,.80,.26,.07,cool);
+  for(const q of [-1,0,1]){C(L+q*.5,1.57,BA+.57,.125,.17,pale);O(L+q*.5,1.67,BA+.57,.09,warm);}
+  table(R,FR);B(R+.9,.56,FR,.5,.48,.48,accent);props+=4;
+ }else if(kind==='bank'){
+  counter(L,FR);B(R,1.53,BA,1.75,2.68,.29,metal);
+  const dial=new THREE.Mesh(new THREE.TorusGeometry(.52,.085,9,25),brass);
+  dial.position.set(R,1.55,BA+.19);scene.add(dial);pieces++;
+  for(let q=0;q<4;q++)B(R+Math.cos(q*Math.PI/2)*.25,1.55+Math.sin(q*Math.PI/2)*.25,BA+.27,.09,.09,.11,brass);
+  props+=2;
+ }else if(kind==='arcade'){
+  for(const p of [-1.85,0,1.85]){
+   B(x+p,1.3,BA,.96,2.4,.8,metal);
+   B(x+p,1.56,BA+.43,.76,.72,.07,p===0?cool:glow(p<0?'#ff7bda':'#ffe577',.7));
+   B(x+p,1.06,BA+.44,.71,.12,.24,accent);
+   for(const dx of [-.19,0,.19])O(x+p+dx,1.17,BA+.58,.045,brass);
+  }table(x,FR);props+=3;
+ }else if(kind==='clinic'){
+  for(const v of [L,R]){
+   B(v,.75,BA,1.8,.38,1.0,pale);
+   B(v,1.09,BA-.30,.66,.15,.37,M.white);
+   B(v+.8,1.59,BA,.08,1.35,.08,metal);
+   B(v+.8,2.23,BA,.51,.29,.08,cool);
+  }B(x,2.28,FR,.14,.75,.08,accent);B(x,2.28,FR,.68,.15,.08,accent);props+=3;
+ }else if(kind==='post'){
+  counter(L,FR);for(let row=0;row<2;row++)for(let col=0;col<4;col++){
+   B(R+(col-1.5)*.34,.80+row*.66,BA,.30,.40,.19,accent);
+   B(R+(col-1.5)*.34,.83+row*.66,BA+.10,.22,.09,.02,pale);
+  }props+=8;
+ }else if(kind==='market'||kind==='toy'||kind==='boutique'){
+  shelf(L,BA);counter(R,FR);
+  for(let j=0;j<8;j++){
+   const xx=L-.58+(j%4)*.36,yy=.56+Math.floor(j/4)*.66;
+   const color=['#ffadb8','#93d7eb','#ffe29d','#9de8ba'][j%4];
+   if(kind==='toy'){O(xx,yy,BA+.41,.15,mat(color));O(xx,yy+.14,BA+.40,.07,mat(color))}
+   else B(xx,yy,BA+.41,.23,.31,.26,mat(color));
+  }props+=8;
+  if(kind==='boutique'){for(const tx of [R-.6,R+.6]){C(tx,.96,BA,.12,1.10,pale);O(tx,1.64,BA,.19,pale);B(tx,1.20,BA,.50,.66,.28,accent)}}
+ }else if(kind==='library'){
+  shelf(L,BA);shelf(R,BA);table(x,FR);
+  for(const tx of [L,R])for(let j=0;j<8;j++)B(tx-.72+j*.21,1.41,BA+.39,.14,.35,.18,mat(['#a6786c','#7ba5ae','#dcc06b','#759777'][j%4]));
+  props+=16;
+ }else if(kind==='bakery'){
+  counter(L,FR);B(R,1.47,BA,1.75,2.35,.77,metal);
+  B(R,1.48,BA+.40,1.19,.86,.065,glow('#ffcf85',.3));
+  for(let j=0;j<6;j++)O(L+(j-2.5)*.40,1.57,FR,.15,mat(j%2?'#b27b43':'#f0b36b'));props+=7;
+ }else if(kind==='gym'){
+  for(const tx of [L,R]){
+   B(tx,.49,BA,1.48,.24,.53,metal);
+   B(tx+.65,1.13,BA,.14,1.17,.14,metal);
+   B(tx-.65,1.13,BA,.14,1.17,.14,metal);
+   O(tx+.65,1.13,BA,.15,accent);O(tx-.65,1.13,BA,.15,accent);
+  }props+=2;
+ }else if(kind==='house'||kind==='villa'){
+  B(L,.65,BA,2.18,.77,1.39,mat('#afcbe5'));
+  B(L,1.08,BA-.42,1.95,.19,.50,pale);
+  B(R,.58,FR,2.22,.81,.89,accent);
+  for(const sx of [-.86,.86])B(R+sx,.87,FR,.43,.39,.50,pale);
+  table(x,FR);props+=4;
+ }
+ for(const zz of [z-d*.29,z+d*.22]){C(x,4.57,zz,.22,.19,warm);B(x,4.82,zz,.04,.35,.04,metal);}
+ architectureBuildings.push({name,kind,face,details:pieces,roomProps:props,roofPanels:roofPanels.length});
+}
+function updateArchitectureRoofs(dt){
+ const t=Math.min(1,dt*5);
+ for(const b of architectureRoofs){
+  const indoors=Math.abs(state.x-b.x)<b.w*.57&&Math.abs(state.z-b.z)<b.d*.57;
+  for(const p of b.panels)p.material.opacity+=((indoors?.075:.86)-p.material.opacity)*t;
+ }
+}
+
 function enterableBuilding(x,z,w,d,h,name,kind='house',face='south'){
  const palette={house:mat('#f1d6c4'),bank:mat('#d7e6f3'),market:mat('#e4dab8'),cafe:mat('#e8c8c0'),clinic:mat('#d9eff1'),arcade:mat('#dbc7f2'),post:mat('#e6d4b5'),toy:mat('#f1d0dc'),library:mat('#d4d7c9'),bakery:mat('#edd6b6'),boutique:mat('#e6c9df'),gym:mat('#d5dce9'),villa:mat('#f3e6cf'),office:mat('#d4dde8'),sweet:mat('#f4d6d6')};
  const base=palette[kind]||palette.house,trim=M.white,wall=.35,doorW=3.15,lintelH=2.85;
@@ -302,6 +494,7 @@ function enterableBuilding(x,z,w,d,h,name,kind='house',face='south'){
    addCounter(lx,fz,2.8,.65);addShelf(rx,bz);
    for(let j=0;j<4;j++)ball(scene,lx+(j-1.5)*.55,1.62,fz,.15,glow(['#ff8ebc','#ffe395','#a3edff','#caa3fe'][j],.5));
  }
+ architecturalDetail(x,z,w,d,h,name,kind,face);
  regions.push({x,z,radius:Math.max(w,d)*.7,name:'🏠 '+name});
 }
 const townBuildings=[
@@ -1128,6 +1321,7 @@ let hudTick=0;function updateHUD(dt){hudTick-=dt;if(hudTick>0)return;hudTick=.12
  if(gameMode==='multi')updateLobbyHUD();drawMinimap()}
 const clock=new THREE.Clock();
 function frame(){requestAnimationFrame(frame);let dt=Math.min(.045,clock.getDelta());visualTime+=dt;
+ updateArchitectureRoofs(dt);
  if(!paused){state.time+=dt;state.shotCD=Math.max(0,state.shotCD-dt);state.invincible=Math.max(0,state.invincible-dt);
   updateParkour(dt);updateCitizens(dt);updateCrates(dt);updateWorldGadgets(dt);if(shooting)fire();if(gameMode!=='multi')updateEnemies(dt);updateProjectiles(dt);updateCandies(dt);updateRegions();
   for(let p of [...particles]){p.t-=dt;p.vy-=(p.gravity??14)*dt;p.mesh.position.x+=p.vx*dt;p.mesh.position.y+=p.vy*dt;p.mesh.position.z+=p.vz*dt;p.mesh.scale.multiplyScalar(.99);if(p.t<=0){scene.remove(p.mesh);if(p.ownedGeometry)p.mesh.geometry.dispose();particles.splice(particles.indexOf(p),1)}}
@@ -1226,7 +1420,8 @@ function handleNet(msg){if(msg.type==='error'){connectionError(msg.message||'Err
 function showNetworkPause(){if(gameMode==='multi'){uiModal('⏸ Pausa online',`<p>La gara continua anche mentre questo menu è aperto. Puoi tornare alla partita oppure lasciare la stanza.</p><div class="feature">Stanza <b>${onlineRoom}</b> · Nella gara online le caramelle sono condivise e puoi recuperare quelle di un altro giocatore mettendolo fuori gioco.</div>`,[{text:'▶ RIPRENDI',fn:resume},{text:'👥 CLASSIFICA E CODICE',fn:()=>{showLobby()}},{text:'🏠 ESCI DALLA STANZA',fn:backToModes,secondary:true}],'PAUSA ONLINE');return}showPause()}
 $('lobbyButton').addEventListener('click',showNetworkPause);
 
-window.__candyMapStats={candyCount:TOTAL_CANDY,buildingCount:townBuildings.length,enemyTypes:Object.keys(TYPES).length,extraEnemies:cityEnemySpawns.length,entrances:townBuildings.map(b=>{const xx=b.face==='east'?b.x+b.w/2-.2:b.face==='west'?b.x-b.w/2+.2:b.x;const zz=b.face==='north'?b.z-b.d/2+.2:b.face==='south'?b.z+b.d/2-.2:b.z;return {name:b.name,open:!obstructs(xx,zz,0)};}),roomDoorOpen:townBuildings.map(b=>({name:b.name,open:!obstructs(b.x,b.z-b.d*.08,0)}))};
+window.__candyArchitectureStats={count:architectureBuildings.length,details:architectureBuildings,totalDetails:architectureBuildings.reduce((a,b)=>a+b.details,0),fadingRoofs:true};
+window.__candyMapStats={candyCount:TOTAL_CANDY,buildingCount:townBuildings.length,enemyTypes:Object.keys(TYPES).length,extraEnemies:cityEnemySpawns.length,entrances:townBuildings.map(b=>{const xx=b.face==='east'?b.x+b.w/2-.2:b.face==='west'?b.x-b.w/2+.2:b.x;const zz=b.face==='north'?b.z-b.d/2+.2:b.face==='south'?b.z+b.d/2-.2:b.z;const hit=obstructs(xx,zz,0);return {name:b.name,open:!hit,blocker:hit?{x:hit.x,z:hit.z,w:hit.w,d:hit.d,top:hit.top}:null};}),roomDoorOpen:townBuildings.map(b=>({name:b.name,open:!obstructs(b.x,b.z-b.d*.08,0)}))};
 window.__candyBoot=true;
 loadCosmetics(); applyCharacterSkin();
 initModeMenu();
