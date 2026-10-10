@@ -1,0 +1,59 @@
+🍬 CANDY CHAOS 3D — GIOCA OFFLINE DA PC DIVERSI
+===============================================
+
+NON SERVE INTERNET DURANTE LA PARTITA.
+SERVE INVECE CHE I PC SIANO COLLEGATI ALLA STESSA RETE LOCALE.
+
+COMINCIA COSÌ (WINDOWS)
+1) Scarica lo ZIP completo e fai clic destro > "Estrai tutto".
+2) Collega il tuo PC e quelli degli amici allo STESSO Wi-Fi
+   o all'hotspot di un telefono (anche SENZA Internet).
+3) Sul PC che ospita la partita apri GIOCA_OFFLINE_CON_AMICI.bat.
+   NON CHIUDERE la finestra che mostra gli indirizzi.
+4) Su quel PC si apre il browser con http://127.0.0.1:3000 .
+5) Nella finestra nera cerca "SUI PC DEGLI AMICI:"
+   Esempio: http://192.168.1.23:3000
+   Questo indirizzo cambia in base al tuo Wi-Fi.
+6) Sugli altri PC apri Chrome o Edge e scrivi QUELL'INDIRIZZO.
+   Non usare localhost sugli altri PC: aprirebbe il LORO computer.
+7) Il creatore sceglie MULTIGIOCATORE > CREA STANZA;
+   invia agli altri il codice di 6 cifre o il link d'invito.
+8) Gli amici entrano nella stanza con il codice. Il creatore
+   preme "AVVIA LA GARA". Si gioca insieme sullo stesso mondo.
+
+INSTALLAZIONE
+- Sull'HOST Windows non serve installare Node.js:
+  il pacchetto contiene un file node.exe portatile ufficiale.
+- Sugli ALTRI PC non serve installare nulla: basta Chrome o Edge.
+- Il motore grafico Three.js e' incluso in index.html.
+- Nessuna CDN, nessuna connessione a Internet, nessun login:
+  il gioco, il server e le stanze funzionano sulla rete locale.
+- Il link online GitHub e' diverso dalla partita LAN offline!
+
+SE NON SI CONNETTE
+- Verifica che i PC siano sulla stessa rete Wi-Fi/hotspot
+  e che l'indirizzo inizi con 192.168... oppure 10....
+- In Windows Defender Firewall, consenti l'accesso a node.exe
+  su "Reti private" quando viene richiesto.
+- Se necessario usa l'apposito comando Windows aggiungi regola
+  TCP in ingresso porta 3000 SOLO SU RETE PRIVATA (facoltativo).
+- Disattiva "isolamento client/AP" sulla rete Wi-Fi o evita reti
+  ospiti/pubbliche: spesso impediscono ai PC di vedersi.
+- Prova nel browser degli amici:
+  http://IP-DEL-PC-HOST:3000/health
+  Dovrebbe apparire una scritta JSON con "ok":true.
+- Assicurati di aver estratto TUTTO lo ZIP e che la finestra
+  del server sia ancora aperta.
+
+COSA È INCLUSO
+- 15 edifici nuovi con stanze, torri bianche, scuola, boss, skin,
+  20 armi speciali, caramelle, gioco singolo e creativo.
+- Multiplayer LAN: massimo 12 giocatori, partite di 8 minuti,
+  classifica, caramelle condivise, scontri cartoon e respawn.
+
+NOTA: OFFLINE DA PC DIVERSI significa SENZA INTERNET ma
+CON UN COLLEGAMENTO DI RETE (Wi-Fi, hotspot o Ethernet).
+Non e' possibile collegare PC distinti senza alcuna rete.
+
+Three.js r160 — (c) three.js Authors — Licenza MIT.
+Node.js — (c) OpenJS Foundation e contributori.
