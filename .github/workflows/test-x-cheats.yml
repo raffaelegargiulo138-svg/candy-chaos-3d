@@ -1,0 +1,119 @@
+name: Test X cheats in browser and multiplayer
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/test-x-cheats.yml]
+  workflow_dispatch:
+jobs:
+  test-cheat-menu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install browser and multiplayer test tools
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save playwright-core@1.56.1 ws@8
+      - name: Run 3D game and test cheats in real Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server.js
+          node server.js >/tmp/candy-cheats-server.log 2>&1 &
+          HOST_PID=$!
+          trap 'kill "$HOST_PID" 2>/dev/null || true' EXIT
+          sleep 3
+          node - <<'NODE'
+          const {chromium}=require('playwright-core');
+          const WS=require('ws');
+          const assert=require('node:assert/strict');
+          const delay=t=>new Promise(r=>setTimeout(r,t));
+          function next(ws,type){
+            return new Promise((resolve,reject)=>{
+              const timeout=setTimeout(()=>{ws.off('message',on);reject(new Error('Timeout waiting for '+type))},7000);
+              function on(raw){let m;try{m=JSON.parse(raw)}catch{return}if(m.type===type){clearTimeout(timeout);ws.off('message',on);resolve(m)}}
+              ws.on('message',on);
+            });
+          }
+          async function main(){
+            const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/google-chrome',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader']});
+            const page=await browser.newPage();
+            const errors=[];let external=0;
+            page.on('pageerror',e=>{errors.push(e.stack);console.error('GAME ERROR',e.stack)});
+            await page.route('**/*',route=>{
+              const u=new URL(route.request().url());
+              if(['127.0.0.1','localhost'].includes(u.hostname))route.continue();
+              else{external++;route.abort()}
+            });
+            try{
+              await page.goto('http://127.0.0.1:3000/',{waitUntil:'domcontentloaded',timeout:60000});
+              await page.waitForFunction(()=>window.__candyBoot===true,null,{timeout:85000});
+              const map=await page.evaluate(()=>window.__candyMapStats);
+              const arch=await page.evaluate(()=>window.__candyArchitectureStats);
+              assert.equal(map.buildingCount,15);
+              assert.equal(arch.count,15);
+              assert.ok(arch.totalDetails>=400,'Need detailed buildings, got '+arch.totalDetails);
+              assert.equal(map.entrances.filter(x=>!x.open).length,0,'Doorways blocked');
+              console.log('ARCHITECTURE_OK',arch.count,arch.totalDetails);
+              await page.locator('#playCard').click();
+              await page.locator('#creativeCard').click();
+              await page.keyboard.press('x');
+              assert.match(await page.locator('#modalContent').innerText(),/MENU TRUCCHI/);
+              assert.equal(await page.locator('.cheatToggle').count(),4);
+              console.log('CHEATS_MENU_X_OK');
+              await page.locator('[data-cheat="fly"]').click();
+              assert.equal(await page.evaluate(()=>window.__candyCheats.fly),true);
+              await page.keyboard.press('x');
+              assert.equal(await page.locator('#modal').evaluate(e=>e.classList.contains('hidden')),true);
+              const y0=await page.evaluate(()=>window.__candyDebug().y);
+              await page.keyboard.down('Space');
+              await delay(900);
+              await page.keyboard.up('Space');
+              const y1=await page.evaluate(()=>window.__candyDebug().y);
+              console.log('FLY_Y',y0,y1);
+              assert.ok(y1>y0+1.5,'Fly should increase altitude');
+              await page.keyboard.press('x');
+              await page.locator('[data-cheat="fly"]').click();
+              assert.equal(await page.evaluate(()=>window.__candyCheats.fly),false);
+              await page.locator('[data-cheat="aimbot"]').click();
+              assert.equal(await page.evaluate(()=>window.__candyCheats.aimbot),true);
+              await page.locator('[data-cheat="freeze"]').click();
+              assert.equal(await page.evaluate(()=>window.__candyCheats.freeze),true);
+              const alive=await page.evaluate(()=>window.__candyDebug().aliveEnemies);
+              assert.ok(alive>0,'Need spawned NPC enemies');
+              await page.locator('[data-cheat="killall"]').click();
+              const knocked=await page.evaluate(()=>window.__candyDebug().aliveEnemies);
+              assert.equal(knocked,0,'KILL ALL should knock out enemy NPCs');
+              console.log('AIMBOT_FREEZE_KILLALL_OK',alive,'enemies');
+              // Host-only multiplayer commands are checked on the actual WebSocket server.
+              const a=new WS('ws://127.0.0.1:3000/ws',{origin:'http://127.0.0.1:3000'});
+              const b=new WS('ws://127.0.0.1:3000/ws',{origin:'http://127.0.0.1:3000'});
+              await Promise.all([new Promise(ok=>a.once('open',ok)),new Promise(ok=>b.once('open',ok))]);
+              let pa=next(a,'joined');a.send(JSON.stringify({type:'create',name:'Host'}));const room=await pa;
+              let pb=next(b,'joined');b.send(JSON.stringify({type:'join',code:room.code,name:'Guest'}));const guest=await pb;
+              pa=next(a,'matchStart');pb=next(b,'matchStart');a.send(JSON.stringify({type:'start'}));
+              await Promise.all([pa,pb]);
+              let guestNotice=next(b,'notice');
+              b.send(JSON.stringify({type:'hostCheat',action:'freeze',enabled:true}));
+              assert.match((await guestNotice).message,/Solo il creatore/);
+              pa=next(a,'cheatState');pb=next(b,'cheatState');
+              a.send(JSON.stringify({type:'hostCheat',action:'freeze',enabled:true}));
+              assert.equal((await pa).freeze,true);assert.equal((await pb).freeze,true);
+              const health=await(await fetch('http://127.0.0.1:3000/health')).json();
+              assert.equal(health.rooms,1);
+              pa=next(a,'cheatState');a.send(JSON.stringify({type:'hostCheat',action:'freeze',enabled:false}));
+              assert.equal((await pa).freeze,false);
+              pb=next(b,'knockout');a.send(JSON.stringify({type:'hostCheat',action:'killall'}));
+              const ko=await pb;assert.equal(ko.victim,guest.id);
+              console.log('MULTIPLAYER_HOST_CHEATS_OK');
+              assert.equal(external,0,'Offline game requested Internet');
+              assert.deepEqual(errors,[],'JavaScript errors');
+              a.close();b.close();
+              console.log('ALL CHEAT TESTS PASSED: X menu, flying, auto-aim toggle, freeze, NPC knockouts and host-only room controls');
+            }finally{await browser.close()}
+          }
+          main().then(()=>process.exit(0),e=>{console.error('CHEATS TEST FAILED:',e);process.exit(1)});
+          NODE
