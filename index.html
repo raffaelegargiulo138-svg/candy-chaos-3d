@@ -1526,6 +1526,7 @@ function showNetworkPause(){if(gameMode==='multi'){uiModal('⏸ Pausa online',`<
 $('lobbyButton').addEventListener('click',showNetworkPause);
 
 window.__candyCheatFeature={hotkey:'X',modes:['single','creative','multi'],list:['fly','aimbot','freeze','killall'],hostOnlyMultiplayer:true};
+window.__candyDebug=()=>({x:state.x,y:state.y,z:state.z,hp:state.hp,aliveEnemies:enemies.filter(e=>e.alive).length,mode:gameMode,host:onlineHost,roomFreeze});
 window.__candyArchitectureStats={count:architectureBuildings.length,details:architectureBuildings,totalDetails:architectureBuildings.reduce((a,b)=>a+b.details,0),totalProps:architectureBuildings.reduce((a,b)=>a+b.roomProps,0),fadingRoofs:true};
 window.__candyMapStats={candyCount:TOTAL_CANDY,buildingCount:townBuildings.length,enemyTypes:Object.keys(TYPES).length,extraEnemies:cityEnemySpawns.length,entrances:townBuildings.map(b=>{const xx=b.face==='east'?b.x+b.w/2-.2:b.face==='west'?b.x-b.w/2+.2:b.x;const zz=b.face==='north'?b.z-b.d/2+.2:b.face==='south'?b.z+b.d/2-.2:b.z;const hit=obstructs(xx,zz,0);return {name:b.name,open:!hit,blocker:hit?{x:hit.x,z:hit.z,w:hit.w,d:hit.d,top:hit.top}:null};}),roomDoorOpen:townBuildings.map(b=>({name:b.name,open:!obstructs(b.x,b.z-b.d*.08,0)}))};
 window.__candyBoot=true;
