@@ -1452,15 +1452,15 @@ function cheatMenu(){
  const host=cheatPermission(),frozen=gameMode==='multi'?roomFreeze:cheats.freeze;
  const status=v=>v?'🟢 ON':'⚪ OFF';
  const disabled=host?'':' disabled';
- uiModal('🎮 MENU TRUCCHI · X',\`
+ uiModal('🎮 MENU TRUCCHI · X',`
    <p>Premi <b>X</b> per chiudere. I trucchi funzionano in modalità Singolo e Creativa.</p>
-   \${gameMode==='multi'?'<div class="feature">📡 MULTIPLAYER: solo il <b>creatore della stanza</b> può attivarli. Freeze e KILL ALL si applicano alla stanza tramite il server, con avviso per tutti.</div>':''}
+   ${gameMode==='multi'?'<div class="feature">📡 MULTIPLAYER: solo il <b>creatore della stanza</b> può attivarli. Freeze e KILL ALL si applicano alla stanza tramite il server, con avviso per tutti.</div>':''}
    <div class="tiles">
-    <div class="tile"><b>🪽 FLY · \${status(cheats.fly)}</b><span>Vola con SPAZIO per salire e CTRL per scendere, WASD per spostarti.</span><button class="btn cheatToggle" data-cheat="fly"\${disabled}>🪽 \${cheats.fly?'DISATTIVA':'ATTIVA'} FLY</button></div>
-    <div class="tile"><b>🎯 AIMBOT · \${status(cheats.aimbot)}</b><span>La mira punta automaticamente verso il nemico più vicino.</span><button class="btn cheatToggle" data-cheat="aimbot"\${disabled}>🎯 \${cheats.aimbot?'DISATTIVA':'ATTIVA'} AIMBOT</button></div>
-    <div class="tile"><b>🧊 FREEZE · \${status(frozen)}</b><span>Blocca i nemici; in multiplayer ferma gli avversari finché non lo disattivi.</span><button class="btn cheatToggle" data-cheat="freeze"\${disabled}>🧊 \${frozen?'SBLOCCA':'BLOCCA'} NEMICI</button></div>
-    <div class="tile"><b>💥 KILL ALL</b><span>Mette KO tutti i nemici presenti. In multiplayer li rimanda allo spawn.</span><button class="btn cheatToggle" data-cheat="killall"\${disabled}>💥 KO DI TUTTI</button></div>
-   </div>\`,
+    <div class="tile"><b>🪽 FLY · ${status(cheats.fly)}</b><span>Vola con SPAZIO per salire e CTRL per scendere, WASD per spostarti.</span><button class="btn cheatToggle" data-cheat="fly"${disabled}>🪽 ${cheats.fly?'DISATTIVA':'ATTIVA'} FLY</button></div>
+    <div class="tile"><b>🎯 AIMBOT · ${status(cheats.aimbot)}</b><span>La mira punta automaticamente verso il nemico più vicino.</span><button class="btn cheatToggle" data-cheat="aimbot"${disabled}>🎯 ${cheats.aimbot?'DISATTIVA':'ATTIVA'} AIMBOT</button></div>
+    <div class="tile"><b>🧊 FREEZE · ${status(frozen)}</b><span>Blocca i nemici; in multiplayer ferma gli avversari finché non lo disattivi.</span><button class="btn cheatToggle" data-cheat="freeze"${disabled}>🧊 ${frozen?'SBLOCCA':'BLOCCA'} NEMICI</button></div>
+    <div class="tile"><b>💥 KILL ALL</b><span>Mette KO tutti i nemici presenti. In multiplayer li rimanda allo spawn.</span><button class="btn cheatToggle" data-cheat="killall"${disabled}>💥 KO DI TUTTI</button></div>
+   </div>`,
   [{text:'▶ TORNA A GIOCARE',fn:resume}], 'TRUCCHI');
  document.querySelectorAll('.cheatToggle').forEach(b=>b.addEventListener('click',()=>applyCheat(b.dataset.cheat)));
 }
