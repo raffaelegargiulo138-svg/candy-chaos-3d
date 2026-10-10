@@ -1093,7 +1093,7 @@ function copyLocalText(value){
  else toast('📋 Seleziona e copia il link dalla stanza.',2);
 }
 const LAN_ZIP_RELEASE='https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/latest';
-function isStaticGameLink(){return /(?:^|\\.)(?:raw\\.githack\\.com|githack\\.com|github\\.io|githubusercontent\\.com)$/i.test(location.hostname)}
+function isStaticGameLink(){const host=location.hostname.toLowerCase();return ['raw.githack.com','githack.com','github.io','githubusercontent.com'].some(h=>host===h||host.endsWith('.'+h))}
 function showMultiplayerMenu(){
  if(isStaticGameLink()){
   uiModal('🌐 MULTIPLAYER: SERVE LA VERSIONE LAN',`<p>Questo link pubblico apre <b>solo il gioco singolo</b>, perché non ha un server multiplayer attivo.</p>
