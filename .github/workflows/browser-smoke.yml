@@ -1,0 +1,44 @@
+name: Verify browser boot
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  browser-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install test browser
+        run: |
+          npm init -y
+          npm install playwright-core@1.56.1
+      - name: Run browser smoke test
+        run: |
+          python3 -m http.server 8765 > /tmp/candy-server.log 2>&1 &
+          sleep 2
+          node - <<'NODE'
+          const {chromium} = require('playwright-core');
+          (async () => {
+            const browser = await chromium.launch({headless: true, executablePath: '/usr/bin/google-chrome', args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader']});
+            const page = await browser.newPage();
+            page.on('pageerror',e => console.error('PAGE_ERROR: ', e.stack));
+            page.on('console',m => console.log('CONSOLE '+m.type()+': '+m.text()));
+            await page.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:45000});
+            await page.waitForTimeout(15000);
+            console.log('GAME_BOOTED',await page.evaluate(()=>window.__candyBoot));
+            console.log('MODAL', (await page.locator('#modalContent').innerText()).slice(0,700));
+            await page.screenshot({path:'startup.png'});
+            if(!await page.evaluate(()=>window.__candyBoot))process.exitCode=1;
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: startup-screenshot
+          path: startup.png
