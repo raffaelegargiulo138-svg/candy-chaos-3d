@@ -216,9 +216,9 @@ addLabel('TETTI DELLA SCUOLA',11,8.9,24,'#ffe7a9',.6);regions.push({x:13,z:25,ra
 function whiteTower(x,z,h=12,labelTxt='TORRE'){const base=mat('#edf4ff',.42); const trim=mat('#d2e6ff',.28,.08); structural(x,z,5.2,5.2,h,base); box(scene,x,h+.25,z,6,.5,6,trim); platform(x,h+.6,z,6,6,trim); addLabel(labelTxt,x,h+2.2,z,'#f3fbff',.52);}
 function whiteBlock(x,z,w,d,h){const base=mat('#f6fbff',.46); const trim=mat('#d8e7f9',.28,.04); structural(x,z,w,d,h,base); box(scene,x,h+.2,z,w+.5,.4,d+.5,trim); for(let sx=-w/2+1.4;sx<w/2-1;sx+=2.8){box(scene,x+sx,h*.55,z+d/2+.06,1.3,1.6,.09,M.glass,false);} }
 const whiteStructures=[
- ['tower',101,80,13],['tower',101,61,15],['tower',101,42,11],['tower',101,-78,16],['tower',101,-97,12],
- ['block',88,83,9,9,7],['block',72,83,10,8,6],['block',57,83,8,8,5],['block',98,15,12,8,6],['block',98,-2,11,9,7],
- ['block',-103,92,9,9,6],['block',-103,74,11,8,7],['block',-103,-70,10,10,6],['block',-103,-88,9,12,7],['block',-88,-102,14,9,6]
+ ['tower',101,80,13],['tower',101,61,15],/* old white block moved aside so furnished shop stays open */['tower',101,-78,16],['tower',101,-97,12],
+ ['block',88,83,9,9,7],['block',72,83,10,8,6],['block',57,83,8,8,5],['block',98,15,12,8,6],/* old white block moved aside so furnished shop stays open */
+ ['block',-103,92,9,9,6],['block',-103,74,11,8,7],['block',-103,-70,10,10,6],/* old white block moved aside so furnished shop stays open */['block',-88,-102,14,9,6]
 ];
 for(const s of whiteStructures){ if(s[0]==='tower')whiteTower(s[1],s[2],s[3],'TORRE BIANCA'); else whiteBlock(s[1],s[2],s[3],s[4],s[5]); }
 regions.push({x:95,z:10,radius:44,name:'⬜ Distretto bianco'});
@@ -1420,7 +1420,7 @@ function handleNet(msg){if(msg.type==='error'){connectionError(msg.message||'Err
 function showNetworkPause(){if(gameMode==='multi'){uiModal('⏸ Pausa online',`<p>La gara continua anche mentre questo menu è aperto. Puoi tornare alla partita oppure lasciare la stanza.</p><div class="feature">Stanza <b>${onlineRoom}</b> · Nella gara online le caramelle sono condivise e puoi recuperare quelle di un altro giocatore mettendolo fuori gioco.</div>`,[{text:'▶ RIPRENDI',fn:resume},{text:'👥 CLASSIFICA E CODICE',fn:()=>{showLobby()}},{text:'🏠 ESCI DALLA STANZA',fn:backToModes,secondary:true}],'PAUSA ONLINE');return}showPause()}
 $('lobbyButton').addEventListener('click',showNetworkPause);
 
-window.__candyArchitectureStats={count:architectureBuildings.length,details:architectureBuildings,totalDetails:architectureBuildings.reduce((a,b)=>a+b.details,0),fadingRoofs:true};
+window.__candyArchitectureStats={count:architectureBuildings.length,details:architectureBuildings,totalDetails:architectureBuildings.reduce((a,b)=>a+b.details,0),totalProps:architectureBuildings.reduce((a,b)=>a+b.roomProps,0),fadingRoofs:true};
 window.__candyMapStats={candyCount:TOTAL_CANDY,buildingCount:townBuildings.length,enemyTypes:Object.keys(TYPES).length,extraEnemies:cityEnemySpawns.length,entrances:townBuildings.map(b=>{const xx=b.face==='east'?b.x+b.w/2-.2:b.face==='west'?b.x-b.w/2+.2:b.x;const zz=b.face==='north'?b.z-b.d/2+.2:b.face==='south'?b.z+b.d/2-.2:b.z;const hit=obstructs(xx,zz,0);return {name:b.name,open:!hit,blocker:hit?{x:hit.x,z:hit.z,w:hit.w,d:hit.d,top:hit.top}:null};}),roomDoorOpen:townBuildings.map(b=>({name:b.name,open:!obstructs(b.x,b.z-b.d*.08,0)}))};
 window.__candyBoot=true;
 loadCosmetics(); applyCharacterSkin();
