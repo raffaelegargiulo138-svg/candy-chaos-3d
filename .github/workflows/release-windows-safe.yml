@@ -1,4 +1,4 @@
-name: Windows safe source-only LAN
+name: Windows safe source-only LAN 24 weapons
 on:
   push:
     branches: [main]
@@ -83,6 +83,7 @@ jobs:
             assert.equal(response.status,200);
             const health=await response.json();
             assert.equal(health.candies,195);
+            console.log('SECURITY AND SERVER CHECK: 195 candies and LAN-only host');
             assert.equal(response.headers.get('x-content-type-options'),'nosniff');
             const h=await fetch('http://127.0.0.1:3000/');
             assert.equal(h.status,200);
@@ -110,6 +111,14 @@ jobs:
             const guest=await pb;assert.equal(guest.code,room.code);
             pa=next(a,'matchStart');pb=next(b,'matchStart');
             a.send(JSON.stringify({type:'start'}));await Promise.all([pa,pb]);
+            for(const w of [20,21,22,23]){
+              pa=next(a,'playerShot');
+              a.send(JSON.stringify({type:'fire',weapon:w}));
+              const hit=await pa;
+              assert.equal(hit.weapon,w,'Server did not recognize weapon '+w);
+              console.log('SERVER_WEAPON_PASS',w);
+              await sleep(1600);
+            }
             pa=next(a,'quizPenalty');a.send(JSON.stringify({type:'quizWrong'}));
             assert.equal((await pa).candy,0);
             a.close();b.close();
@@ -123,37 +132,37 @@ jobs:
           set -euo pipefail
           PACK='dist/Candy_Chaos_3D_WINDOWS_SICURO'
           mkdir -p "$PACK"
-          cp index.html server.js LEGGIMI_WINDOWS_SICURO.txt LICENZA_THREE.txt "$PACK/"
+          cp index.html server.js LEGGIMI_WINDOWS_SICURO.txt LICENZA_THREE.txt NOVITA_24_ARMI.txt "$PACK/"
           if find "$PACK" -type f | grep -Ei '\.(exe|msi|dll|bat|cmd|ps1|vbs|scr|jar)$'; then
             echo 'ERROR: Unsafe executable or script present in Windows-safe distribution'
             exit 1
           fi
-          (cd "$PACK"; sha256sum index.html server.js LEGGIMI_WINDOWS_SICURO.txt LICENZA_THREE.txt > SHA256_FILE.txt)
-          (cd dist; zip -q -r -9 Candy_Chaos_3D_WINDOWS_SICURO.zip Candy_Chaos_3D_WINDOWS_SICURO)
-          (cd dist; sha256sum Candy_Chaos_3D_WINDOWS_SICURO.zip > Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256)
-          unzip -l dist/Candy_Chaos_3D_WINDOWS_SICURO.zip
-          cat dist/Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256
+          (cd "$PACK"; sha256sum index.html server.js LEGGIMI_WINDOWS_SICURO.txt LICENZA_THREE.txt NOVITA_24_ARMI.txt > SHA256_FILE.txt)
+          (cd dist; zip -q -r -9 Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip Candy_Chaos_3D_WINDOWS_SICURO)
+          (cd dist; sha256sum Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip > Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip.sha256)
+          unzip -l dist/Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip
+          cat dist/Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip.sha256
       - name: Publish verifiable Windows-safe release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG='windows-safe-v1'
-          ZIP='dist/Candy_Chaos_3D_WINDOWS_SICURO.zip'
-          SUM='dist/Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256'
+          TAG='windows-safe-v2'
+          ZIP='dist/Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip'
+          SUM='dist/Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip.sha256'
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ZIP" "$SUM" --clobber
           else
-            gh release create "$TAG" "$ZIP" "$SUM" --title 'Candy Chaos 3D - Windows senza EXE (LAN Offline)' --notes 'Nuovo pacchetto Windows con SOLO file di testo HTML/JS e licenza, senza eseguibili, script BAT/CMD o installatori. Da PC host, installare Node.js LTS soltanto dal sito ufficiale nodejs.org, quindi eseguire node server.js nel Prompt dei comandi. Server limitato alla rete privata; HTTP su Wi-Fi non e cifrato. Il download non e firmato/certificato da Microsoft: rispettare eventuali avvisi di Defender/SmartScreen. Hash SHA256 del pacchetto allegato.'
+            gh release create "$TAG" "$ZIP" "$SUM" --title 'Candy Chaos 3D - 24 armi Windows senza EXE (LAN Offline)' --notes 'Nuovo pacchetto Windows 24 armi (Spara Cacca, RPG, Lancia Joy-Con, AK-47 Cartoon). Contiene SOLO file testuali HTML/JS e licenza, senza eseguibili, BAT/CMD o installatori. Da PC host, installare Node.js LTS soltanto dal sito ufficiale nodejs.org, quindi eseguire node server.js nel Prompt dei comandi. Server limitato alla rete privata; HTTP su Wi-Fi non e cifrato. Il download non e firmato/certificato da Microsoft: rispettare eventuali avvisi di Defender/SmartScreen. Hash SHA256 del pacchetto allegato.'
           fi
-          echo 'DOWNLOAD: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/windows-safe-v1/Candy_Chaos_3D_WINDOWS_SICURO.zip'
-          echo 'CHECKSUM: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/windows-safe-v1/Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256'
+          echo 'DOWNLOAD: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/windows-safe-v2/Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip'
+          echo 'CHECKSUM: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/windows-safe-v2/Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip.sha256'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Candy-Chaos-Windows-Source-Only
           path: |
-            dist/Candy_Chaos_3D_WINDOWS_SICURO.zip
-            dist/Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256
+            dist/Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip
+            dist/Candy_Chaos_3D_24_ARMI_WINDOWS_SICURO.zip.sha256
           if-no-files-found: warn
