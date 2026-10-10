@@ -32,6 +32,15 @@ jobs:
             await page.waitForTimeout(15000);
             console.log('GAME_BOOTED',await page.evaluate(()=>window.__candyBoot));
             console.log('MODAL', (await page.locator('#modalContent').innerText()).slice(0,700));
+            if(!await page.evaluate(()=>window.__candyBoot))throw new Error('3D game not booted');
+            await page.locator('#playCard').click({timeout:20000});
+            await page.locator('#soloCard').click({timeout:20000});
+            await page.waitForTimeout(2500);
+            const playing = await page.evaluate(()=>document.querySelector('#modal').classList.contains('hidden'));
+            const canvases = await page.locator('#game canvas').count();
+            console.log('GAME_PLAYING', playing, 'GAME_CANVASES', canvases);
+            if(!playing || canvases<1)throw new Error('Unable to start solo game');
+
             await page.screenshot({path:'startup.png'});
             if(!await page.evaluate(()=>window.__candyBoot))process.exitCode=1;
             await browser.close();
