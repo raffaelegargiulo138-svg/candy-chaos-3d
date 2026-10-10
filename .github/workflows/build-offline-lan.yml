@@ -69,6 +69,18 @@ jobs:
             await page.goto('http://127.0.0.1:3000/',{waitUntil:'domcontentloaded',timeout:60000});
             await page.waitForFunction(()=>window.__candyBoot===true,null,{timeout:75000});
             assert.match(await page.locator('#modalContent').innerText(),/GIOCA/);
+            const stats=await page.evaluate(()=>window.__candyMapStats);
+            assert.equal(stats.candyCount,195);
+            assert.equal(stats.buildingCount,15);
+            assert.equal(stats.extraEnemies,10);
+            assert.equal(stats.enemyTypes,17);
+            console.log('BUILDING_ENTRANCES',JSON.stringify(stats.entrances));
+            console.log('ROOM_PASSAGES',JSON.stringify(stats.roomDoorOpen));
+            assert.equal(stats.entrances.every(e=>e.open),true,'At least one building doorway is blocked');
+            assert.equal(stats.roomDoorOpen.every(e=>e.open),true,'At least one inner room entrance is blocked');
+            const health=await(await fetch('http://127.0.0.1:3000/health')).json();
+            assert.equal(health.candies,195,'LAN server candy count differs from the game');
+
             await page.locator('#multiCard').click();
             assert.match(await page.locator('#modalContent').innerText(),/MULTIGIOCATORE OFFLINE/);
             const a=new WS('ws://127.0.0.1:3000/ws'),b=new WS('ws://127.0.0.1:3000/ws');
@@ -81,6 +93,12 @@ jobs:
             a.send(JSON.stringify({type:'move',x:-27,z:-33.5,y:0,yaw:0,pitch:0,weapon:0}));
             pa=next(a,'pickup');a.send(JSON.stringify({type:'pickup',id:0}));const pickup=await pa;
             assert.equal(pickup.candy,1);
+            pa=next(a,'quizPenalty');
+            a.send(JSON.stringify({type:'quizWrong'}));
+            const quizPenalty=await pa;
+            assert.equal(quizPenalty.candy,0,'Wrong answer should remove exactly one candy');
+            console.log('MATH_PENALTY_PASS',quizPenalty.candy);
+
             assert.equal(outside,0);
             console.log('LAN BROWSER TEST PASS: menu, 2 players, room code, pickup and no Internet requests.');
             a.close();b.close();await browser.close();
@@ -90,22 +108,22 @@ jobs:
       - name: Compress portable game
         run: |
           cd dist
-          zip -9 -q -r Candy_Chaos_3D_OFFLINE_DA_PC_DIVERSI.zip Candy_Chaos_3D_Offline_LAN
-          ls -lh Candy_Chaos_3D_OFFLINE_DA_PC_DIVERSI.zip
+          zip -9 -q -r Candy_Chaos_3D_V2_BAR_CASINO_195_CARAMELLE.zip Candy_Chaos_3D_Offline_LAN
+          ls -lh Candy_Chaos_3D_V2_BAR_CASINO_195_CARAMELLE.zip
       - name: Publish download on GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          FILE='dist/Candy_Chaos_3D_OFFLINE_DA_PC_DIVERSI.zip'
-          if gh release view offline-lan-v1 >/dev/null 2>&1; then
-            gh release upload offline-lan-v1 "$FILE" --clobber
+          FILE='dist/Candy_Chaos_3D_V2_BAR_CASINO_195_CARAMELLE.zip'
+          if gh release view offline-lan-v2 >/dev/null 2>&1; then
+            gh release upload offline-lan-v2 "$FILE" --clobber
           else
-            gh release create offline-lan-v1 "$FILE" --title 'Candy Chaos 3D - Offline LAN Windows' --notes 'Un PC Windows ospita il gioco con doppio clic; gli amici aprono il suo indirizzo locale da Chrome/Edge, anche senza Internet. Motore 3D e Node portatile inclusi.'
+            gh release create offline-lan-v2 "$FILE" --title 'Candy Chaos 3D - Offline LAN V2 - Bar Casino 195 Candies' --notes 'Un PC Windows ospita il gioco con doppio clic; gli amici aprono il suo indirizzo locale da Chrome/Edge, anche senza Internet. Motore 3D e Node portatile inclusi.'
           fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Candy-Chaos-Offline-LAN-Windows
-          path: dist/Candy_Chaos_3D_OFFLINE_DA_PC_DIVERSI.zip
+          path: dist/Candy_Chaos_3D_V2_BAR_CASINO_195_CARAMELLE.zip
           if-no-files-found: warn
