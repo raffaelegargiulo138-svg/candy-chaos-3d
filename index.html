@@ -723,6 +723,17 @@ function spawnEnemy(type,x,z){let t=TYPES[type];const group=new THREE.Group();gr
  if(type==='bullo'){ box(group,.68,1.28,-.22,.19,.28,.56,M.pink); box(group,.82,1.28,-.22,.08,.14,.28,glow('#f4ff93',.8),false); }
  if(type==='custode'){ box(group,0,1.18,.34,.52,.56,.15,glow('#9defff',.7),false); for(let s of [-1,1]) box(group,s*.18,2.0,-.34,.06,.06,.06,glow('#8af5ff',1.1),false); }
  if(type==='ninja'){ box(group,0,1.95,-.34,.34,.10,.06,mat('#0f1721'),false); for(let a of [-1,1]){ let sh=box(group,.76*a,1.14,-.12,.32,.03,.32,mat('#bcc9d3'),false); sh.rotation.y=Math.PI/4; } }
+ // Locals have distinct silhouettes and props instead of recolored identical enemies.
+ if(type==='negoziante'){box(group,0,1.25,-.37,.39,.35,.07,glow('#a4ffe1',.35),false);box(group,0,2.37,0,.62,.12,.62,M.gold);}
+ if(type==='barista'){cyl(group,0,2.48,0,.29,.36,.46,M.white);box(group,0,1.18,-.37,.48,.76,.06,mat('#fff7dc'),false);cyl(group,.67,1.02,-.12,.14,.19,.3,mat('#f1c59b'));}
+ if(type==='croupier'){cyl(group,0,2.52,0,.25,.27,.62,M.black);box(group,0,2.21,0,.87,.09,.73,M.gold);box(group,0,1.2,-.4,.43,.12,.06,mat('#ffeea6'),false);}
+ if(type==='guardiabanca'){box(group,.65,1.15,-.24,.43,.64,.10,M.metal,false);box(group,.65,1.15,-.31,.26,.36,.08,M.gold,false);box(group,0,2.34,0,.7,.15,.69,M.black);}
+ if(type==='panettiere'){cyl(group,0,2.48,0,.35,.33,.45,M.white);box(group,0,1.18,-.34,.56,.79,.06,M.cream,false);box(group,.66,1.0,-.22,.16,.73,.15,WOOD,false);}
+ if(type==='dottore'){box(group,0,1.27,-.37,.15,.47,.08,glow('#ff838c',.5),false);box(group,0,1.27,-.37,.46,.13,.085,glow('#ff838c',.5),false);}
+ if(type==='postino'){box(group,.44,1.04,.30,.47,.48,.23,WOOD,false);box(group,0,2.38,0,.63,.12,.60,M.black);}
+ if(type==='commessa'){ball(group,.33,2.21,-.04,.16,M.pink);ball(group,-.33,2.21,-.04,.16,M.pink);box(group,0,1.12,-.38,.44,.5,.07,glow('#ffc3eb',.24),false);}
+ if(type==='giocattolaio'){ball(group,.65,1.2,-.15,.22,glow('#ffdb93',.35));ball(group,.55,1.43,-.13,.09,M.gold);ball(group,.78,1.43,-.13,.09,M.gold);}
+ if(type==='pasticcere'){cyl(group,0,2.44,0,.34,.30,.5,M.white);ball(group,.64,1.29,-.23,.22,glow('#ffc4d9',.65));}
  const name=label(t.emoji+' '+t.label,boss?'#ffd4da':'#fff6de',boss?.65:.52); name.position.set(0,boss?4.15:3.05,0); group.add(name);
  let e={type,group,x,z,homeX:x,homeZ:z,maxHp:t.hp,hp:t.hp,range:t.range,speed:t.speed,cool:1+rng()*2,state:'normal',burrowTime:0,phase:rng()*9,stun:0,alive:true,respawn:0,spawnedAt:state.time,boss};
  e.bar=makeEnemyBar(group,boss); setEnemyBar(e); enemies.push(e); return e;
