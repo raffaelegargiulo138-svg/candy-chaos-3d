@@ -9,9 +9,9 @@ const fs=require('node:fs'),path=require('node:path'),net=require('node:net');
 const PORT=Number(process.env.PORT||3000), HOST=process.env.HOST||'0.0.0.0';
 const MAX=12, MAX_ROOMS=32, MAX_SOCKETS=48, MATCH_MS=8*60000;
 const rooms=new Map(),sockets=new Set();
-const RATE=[220,90,850,550,390,380,70,1100,190,140,1350,800,3000,240,650,300,1200,480,180,1700];
-const POWER=[7,4,20,15,12,11,3,14,10,6,24,23,25,9,17,8,19,12,8,22];
-const KINDS=['shot','shot','boom','melee','melee','shot','shot','nova','shot','shot','boom','melee','nova','shot','boom','shot','nova','shot','shot','boom'];
+const RATE=[220,90,850,550,390,380,70,1100,190,140,1350,800,3000,240,650,300,1200,480,180,1700,310,1450,350,105];
+const POWER=[7,4,20,15,12,11,3,14,10,6,24,23,25,9,17,8,19,12,8,22,11,28,14,8];
+const KINDS=['shot','shot','boom','melee','melee','shot','shot','nova','shot','shot','boom','melee','nova','shot','boom','shot','nova','shot','shot','boom','shot','boom','shot','shot'];
 function candyLocations(){
   const a=[];
   for(const [x,z] of [[-19,-34.5],[19,-34.5],[-19,-15.5],[19,-15.5],[-19,5],[19,5]])
@@ -150,7 +150,7 @@ function message(c,msg){
     const now=Date.now(),delta=Math.max(.06,Math.min(6,(now-(p.lastMove||now-1000))/1000));
     if(p.lastMove&&Math.hypot(x-p.x,z-p.z)>Math.max(10,delta*34))return;
     p.x=x;p.y=y;p.z=z;p.yaw=yaw;p.pitch=pitch;p.lastMove=now;
-    p.weapon=Math.max(0,Math.min(19,Math.round(Number(msg.weapon)||0)));
+    p.weapon=Math.max(0,Math.min(23,Math.round(Number(msg.weapon)||0)));
     return;
   }
   if(msg.type==='pickup'){
@@ -161,10 +161,10 @@ function message(c,msg){
   }
   if(msg.type==='fire'){
     const w=Number(msg.weapon),now=Date.now();
-    if(!Number.isInteger(w)||w<0||w>=20||now-p.lastFire<Math.max(65,RATE[w]*.87))return;
+    if(!Number.isInteger(w)||w<0||w>=24||now-p.lastFire<Math.max(65,RATE[w]*.87))return;
     p.lastFire=now;
     const kind=KINDS[w],forward={x:-Math.sin(p.yaw)*Math.cos(p.pitch),y:Math.sin(p.pitch),z:-Math.cos(p.yaw)*Math.cos(p.pitch)};
-    const range=kind==='nova'?9:kind==='melee'?4.4:[2,10,14,19].includes(w)?27:51;
+    const range=kind==='nova'?9:kind==='melee'?4.4:[2,10,14,19,21].includes(w)?49:51;
     everyone(r,{type:'playerShot',id:p.id,weapon:w,x:p.x,y:p.y,z:p.z,yaw:p.yaw,pitch:p.pitch});
     let target=null,best=Infinity;
     for(const q of r.players.values()){
@@ -175,12 +175,16 @@ function message(c,msg){
       if(dist<best){target=q;best=dist}
     }
     if(!target)return;
-    target.hp=Math.max(0,target.hp-POWER[w]);
-    everyone(r,{type:'tag',attacker:p.id,victim:target.id,hp:target.hp,weapon:w});
-    if(target.hp<=0){
-      const stolen=target.candy;p.candy+=stolen;target.candy=0;target.hp=100;
-      target.x=0;target.y=0;target.z=27;target.immune=now+4500;
-      everyone(r,{type:'knockout',attacker:p.id,victim:target.id,attackerName:p.name,victimName:target.name,stolen,attackerCandy:p.candy});
+    // RPG: tag nearby opponents around the first impact (cartoon blast).
+    const victims=w===21?[...r.players.values()].filter(q=>q.id!==p.id && now>=q.immune && Math.hypot(q.x-target.x,q.y-target.y,q.z-target.z)<7.5):[target];
+    for(const victim of victims){
+      victim.hp=Math.max(0,victim.hp-(w===21?Math.round(POWER[w]*.78):POWER[w]));
+      everyone(r,{type:'tag',attacker:p.id,victim:victim.id,hp:victim.hp,weapon:w});
+      if(victim.hp<=0){
+        const stolen=victim.candy;p.candy+=stolen;victim.candy=0;victim.hp=100;
+        victim.x=0;victim.y=0;victim.z=27;victim.immune=now+4500;
+        everyone(r,{type:'knockout',attacker:p.id,victim:victim.id,attackerName:p.name,victimName:victim.name,stolen,attackerCandy:p.candy});
+      }
     }
   }
 }
