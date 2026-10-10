@@ -260,7 +260,7 @@ function enterableBuilding(x,z,w,d,h,name,kind='house',face='south'){
  if(kind==='toy'){for(let k=0;k<5;k++)ball(scene,x-w*.22+k*.9,1.25,z-.9,.22,glow(['#f88','#8f8','#88f','#ff8','#8ff'][k%5],.45)); addShelf(x+3.0,z+1.5);} 
  if(kind==='library'){addShelf(x-w*.22,z,0); addShelf(x+w*.22,z,0); addTable(x,z+1.8);} 
  if(kind==='boutique'){for(let k=0;k<4;k++)box(scene,x-w*.24+k*1.2,1.45,z-.8,.7,1.6,.45,mat(['#e2a0c2','#9fc5ef','#d9d18f','#a4d6b0'][k%4])); addCounter(x+2.8,z+1.2,2.6,1.0);} 
- if(kind==='gym'){for(let k=0;k<3;k++)box(scene,x-w*.25+k*2.5,.55,z-.8,.35,1.1,.35,M.metal); box(scene,x-w*.25+k*2.5,1.15,z-.8,1.8,.10,.10,M.metal); addTable(x+3,z+1.2);} 
+ if(kind==='gym'){for(let k=0;k<3;k++){box(scene,x-w*.25+k*2.5,.55,z-.8,.35,1.1,.35,M.metal); box(scene,x-w*.25+k*2.5,1.15,z-.8,1.8,.10,.10,M.metal);} addTable(x+3,z+1.2);} 
  regions.push({x,z,radius:Math.max(w,d)*.7,name:'🏢 '+name});
 }
 const townBuildings=[
