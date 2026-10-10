@@ -1,0 +1,111 @@
+name: Candy Chaos Offline LAN Windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - server.js
+      - GIOCA_OFFLINE_CON_AMICI.bat
+      - LEGGIMI_GIOCO_OFFLINE.txt
+      - LICENZA_THREE.txt
+      - .github/workflows/build-offline-lan.yml
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Assemble offline game
+        run: |
+          set -euo pipefail
+          mkdir -p dist/Candy_Chaos_3D_Offline_LAN
+          cp index.html server.js GIOCA_OFFLINE_CON_AMICI.bat LEGGIMI_GIOCO_OFFLINE.txt LICENZA_THREE.txt dist/Candy_Chaos_3D_Offline_LAN/
+          test "$(wc -c < index.html)" -gt 700000
+          grep -q CANDY_SELF_CONTAINED_V3 index.html
+      - name: Include Windows Node.js portable
+        run: |
+          set -euo pipefail
+          curl --retry 4 --retry-delay 3 -fL 'https://nodejs.org/dist/v22.16.0/node-v22.16.0-win-x64.zip' -o node-win-x64.zip
+          unzip -p node-win-x64.zip 'node-v22.16.0-win-x64/node.exe' > dist/Candy_Chaos_3D_Offline_LAN/node.exe
+          test "$(wc -c < dist/Candy_Chaos_3D_Offline_LAN/node.exe)" -gt 40000000
+      - name: Install headless browser test tools
+        run: |
+          npm init -y > /dev/null
+          npm install --no-save playwright-core@1.56.1 ws@8
+      - name: Verify LAN server and browser menu without Internet
+        run: |
+          set -euo pipefail
+          node server.js >/tmp/lan-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          sleep 3
+          curl -fsS 'http://127.0.0.1:3000/health'
+          node - <<'NODE'
+          const assert=require('node:assert/strict');
+          const WS=require('ws');
+          const {chromium}=require('playwright-core');
+          function next(ws,type){
+            return new Promise((resolve,reject)=>{
+              const timer=setTimeout(()=>{ws.off('message',cb);reject(new Error('Waiting for '+type))},10000);
+              function cb(raw){let m;try{m=JSON.parse(raw)}catch{return}if(m.type===type){clearTimeout(timer);ws.off('message',cb);resolve(m)}}
+              ws.on('message',cb);
+            });
+          }
+          async function main(){
+            const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/google-chrome',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader']});
+            const page=await browser.newPage();let outside=0;
+            page.on('pageerror',e=>console.error('BROWSER JS ERROR',e.message));
+            await page.route('**/*',route=>{
+              const host=new URL(route.request().url()).hostname;
+              if(host==='127.0.0.1'||host==='localhost')route.continue();
+              else{outside++;route.abort()}
+            });
+            await page.goto('http://127.0.0.1:3000/',{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>window.__candyBoot===true,null,{timeout:75000});
+            assert.match(await page.locator('#modalContent').innerText(),/GIOCA/);
+            await page.locator('#multiCard').click();
+            assert.match(await page.locator('#modalContent').innerText(),/MULTIGIOCATORE OFFLINE/);
+            const a=new WS('ws://127.0.0.1:3000/ws'),b=new WS('ws://127.0.0.1:3000/ws');
+            await Promise.all([new Promise(ok=>a.once('open',ok)),new Promise(ok=>b.once('open',ok))]);
+            let pa=next(a,'joined');a.send(JSON.stringify({type:'create',name:'Uno'}));const room=await pa;
+            assert.match(room.code,/^\d{6}$/);
+            let pb=next(b,'joined');b.send(JSON.stringify({type:'join',code:room.code,name:'Due'}));const join=await pb;
+            assert.equal(join.code,room.code);
+            pa=next(a,'matchStart');pb=next(b,'matchStart');a.send(JSON.stringify({type:'start'}));await Promise.all([pa,pb]);
+            a.send(JSON.stringify({type:'move',x:-27,z:-33.5,y:0,yaw:0,pitch:0,weapon:0}));
+            pa=next(a,'pickup');a.send(JSON.stringify({type:'pickup',id:0}));const pickup=await pa;
+            assert.equal(pickup.candy,1);
+            assert.equal(outside,0);
+            console.log('LAN BROWSER TEST PASS: menu, 2 players, room code, pickup and no Internet requests.');
+            a.close();b.close();await browser.close();
+          }
+          main().catch(e=>{console.error(e);process.exitCode=1});
+          NODE
+      - name: Compress portable game
+        run: |
+          cd dist
+          zip -9 -q -r Candy_Chaos_3D_OFFLINE_DA_PC_DIVERSI.zip Candy_Chaos_3D_Offline_LAN
+          ls -lh Candy_Chaos_3D_OFFLINE_DA_PC_DIVERSI.zip
+      - name: Publish download on GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILE='dist/Candy_Chaos_3D_OFFLINE_DA_PC_DIVERSI.zip'
+          if gh release view offline-lan-v1 >/dev/null 2>&1; then
+            gh release upload offline-lan-v1 "$FILE" --clobber
+          else
+            gh release create offline-lan-v1 "$FILE" --title 'Candy Chaos 3D - Offline LAN Windows' --notes 'Un PC Windows ospita il gioco con doppio clic; gli amici aprono il suo indirizzo locale da Chrome/Edge, anche senza Internet. Motore 3D e Node portatile inclusi.'
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Candy-Chaos-Offline-LAN-Windows
+          path: dist/Candy_Chaos_3D_OFFLINE_DA_PC_DIVERSI.zip
+          if-no-files-found: warn
