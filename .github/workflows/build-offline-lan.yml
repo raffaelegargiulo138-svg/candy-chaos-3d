@@ -103,7 +103,7 @@ jobs:
             console.log('LAN BROWSER TEST PASS: menu, 2 players, room code, pickup and no Internet requests.');
             a.close();b.close();await browser.close();
           }
-          main().catch(e=>{console.error(e);process.exitCode=1});
+          main().catch(e=>{console.error('TEST FAILED:',e);process.exit(1)});
           NODE
       - name: Compress portable game
         run: |
