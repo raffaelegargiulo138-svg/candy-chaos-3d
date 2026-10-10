@@ -1,0 +1,95 @@
+CANDY CHAOS 3D — VERSIONE WINDOWS TRASPARENTE E SOLO LAN
+=========================================================
+Per Windows 10/11 • PC diversi sullo stesso Wi-Fi o hotspot • Senza Internet durante la partita
+
+PERCHÉ QUESTA VERSIONE È DIFFERENTE
+- Il pacchetto NON contiene programmi .exe, installatori .msi, script .bat/.cmd/.ps1.
+- Contiene solo index.html (gioco e motore grafico), server.js (server locale),
+  licenza e questo file di istruzioni.
+- Il codice sorgente è leggibile e pubblico:
+  https://github.com/raffaelegargiulo138-svg/candy-chaos-3d
+- Non scarica niente quando avvii la partita.
+- Il server è progettato per accettare soltanto connessioni dalla rete privata
+  e rifiutare collegamenti di browser provenienti da siti estranei.
+- Non chiede password, account o dati personali.
+- NON è un'app firmata o certificata da Microsoft: non è possibile promettere
+  che Windows non mostrerà mai una segnalazione.
+
+COME AVVIARLO IN MODO PRUDENTE
+1) Scarica il file ZIP *WINDOWS_SICURO* soltanto dalla pagina GitHub Releases
+   del progetto. Il file SHA256 omonimo serve per verificare l'integrità.
+2) Prima di aprirlo, esegui una scansione con Sicurezza di Windows /
+   Microsoft Defender. Se segnala malware, NON eseguire il gioco.
+3) Installa Node.js LTS SOLO dal sito ufficiale:
+   https://nodejs.org/en/download
+   Se Node.js è già installato correttamente, non reinstallarlo.
+4) Estrai TUTTO lo ZIP in una cartella, per esempio sul Desktop.
+5) Apri la cartella Candy_Chaos_3D_WINDOWS_SICURO.
+6) Fai clic nella barra dell'indirizzo di Esplora file, scrivi cmd e premi Invio.
+   Comparirà il Prompt dei comandi già posizionato nella cartella del gioco.
+7) Scrivi:
+   node server.js
+   e premi Invio. NON chiudere questa finestra durante la partita.
+8) Sul PC principale apri Chrome/Edge e scrivi:
+   http://localhost:3000
+9) Nella finestra nera vedrai la riga "SUI PC DEGLI AMICI:"
+   Segnati l'URL vero del tuo PC (per esempio http://192.168.1.23:3000).
+10) Sugli altri PC, connessi allo STESSO Wi-Fi/hotspot, apri quell'URL.
+    NON scrivere "localhost" sui PC degli amici.
+11) Crea una stanza multiplayer, condividi il codice di 6 cifre e avvia.
+
+I PC DEGLI AMICI NON DEVONO INSTALLARE NODE.JS.
+Serve soltanto un browser moderno (Chrome/Edge) e la stessa rete privata.
+
+COME CONTROLLARE CHE LO ZIP NON SIA STATO MODIFICATO
+- Scarica anche Candy_Chaos_3D_WINDOWS_SICURO.zip.sha256 dalla stessa Release.
+- In PowerShell, nella cartella dei download, digita:
+  Get-FileHash .\Candy_Chaos_3D_WINDOWS_SICURO.zip -Algorithm SHA256
+- Il valore Hash deve coincidere con il codice nel file .sha256.
+- Un hash uguale dimostra soltanto che il file scaricato coincide con
+  quello pubblicato; NON garantisce da solo l'assenza di malware.
+
+WINDOWS MOSTRA "NON SICURO"?
+A) Se Windows Defender identifica un virus o una minaccia:
+   fermati, NON disattivare Defender, NON inserire eccezioni.
+   Condividi il testo esatto dell'avviso per poter verificare.
+B) Se SmartScreen dice "app sconosciuta" / "Windows ha protetto il PC":
+   può dipendere dalla reputazione del download, non necessariamente da un
+   virus. In ogni caso non aggirare l'avviso senza una verifica affidabile.
+   Questa versione senza file eseguibili evita il binario incluso nei vecchi ZIP.
+C) Se è CHROME a dire "Non sicuro" vicino a http://192.168...:
+   l'HTTP locale non è cifrato. Non inserire password o informazioni personali.
+   Usa una rete Wi-Fi privata affidabile, non pubblica, e non aprire porte
+   sul router verso Internet. Certificati HTTPS affidabili non sono inclusi
+   perché non sarebbero riconosciuti automaticamente da PC diversi offline.
+D) Se Firewall Windows chiede il permesso per Node.js, seleziona
+   soltanto "Reti private" per la rete domestica, se ti fidi del gioco;
+   non disattivare mai il firewall per intero.
+
+CONTENUTO DEL PACCHETTO
+- index.html                         Gioco 3D con motore integrato
+- server.js                          Server LAN scritto in JavaScript
+- LICENZA_THREE.txt                  Licenza Three.js
+- LEGGIMI_WINDOWS_SICURO.txt         Questo documento
+- SHA256_FILE.txt                    Impronte dei singoli file testuali
+
+COME FERMARLO
+- Nella finestra cmd premi Ctrl+C e conferma, oppure chiudi la finestra.
+- Quando il server è spento, nessun altro PC può entrare nella partita.
+- Il multiplayer funziona solo fra PC collegati in rete; non è
+  multiplayer Internet tra case diverse.
+
+SE NON FUNZIONA
+- Verifica che i PC siano connessi allo stesso Wi-Fi/hotspot (non rete ospiti).
+- Sul PC principale prova http://localhost:3000/health (deve mostrare "ok":true).
+- Dall'altro PC prova http://IP-PC-HOST:3000/health .
+- La rete deve essere impostata su "Privata" soltanto se davvero attendibile.
+- Se compare "node non è riconosciuto", controlla l'installazione ufficiale
+  di Node.js, poi riapri la finestra del Prompt dei comandi.
+- Non installare utility, patch o "antivirus disattivati" per farlo partire.
+
+NOTE DI SICUREZZA
+La rete locale non equivale a una connessione cifrata; usa solo reti
+di fiducia. Non esiste un modo onesto per far apparire un'app non firmata
+come certificata da Microsoft. Le verifiche automatiche su GitHub testano
+il codice e la funzione multiplayer, ma non sostituiscono l'antivirus.
