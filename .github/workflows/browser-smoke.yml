@@ -32,6 +32,13 @@ jobs:
             await page.waitForTimeout(15000);
             console.log('GAME_BOOTED',await page.evaluate(()=>window.__candyBoot));
             console.log('MODAL', (await page.locator('#modalContent').innerText()).slice(0,700));
+            const map = await page.evaluate(()=>window.__candyMapStats);
+            console.log('WORLD_METRICS',JSON.stringify(map));
+            if(!map||map.candyCount!==195||map.buildingCount!==15||map.enemyTypes!==17||map.extraEnemies!==10)
+              throw new Error('Expected 195 candies, 15 enterable buildings and 10 new enemy types');
+            if(map.entrances.some(e=>!e.open)||map.roomDoorOpen.some(e=>!e.open))
+              throw new Error('Blocked buildings: '+JSON.stringify(map.entrances.filter(e=>!e.open))+'; blocked inner: '+JSON.stringify(map.roomDoorOpen.filter(e=>!e.open)));
+
             if(!await page.evaluate(()=>window.__candyBoot))throw new Error('3D game not booted');
             await page.locator('#playCard').click({timeout:20000});
             await page.locator('#soloCard').click({timeout:20000});
