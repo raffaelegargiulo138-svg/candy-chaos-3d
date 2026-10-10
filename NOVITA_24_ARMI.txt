@@ -1,0 +1,43 @@
+CANDY CHAOS 3D — NOVITÀ: 24 ARMI GIOCABILI
+===========================================
+
+Sono arrivate QUATTRO ARMI NUOVE, oltre alle 20 precedenti!
+
+21. 💩 SPARA CACCA
+    Spara mucchietti cartoon marroni. Gli avversari colpiti
+    restano rallentati per un momento e parte uno "SPLAT!".
+22. 🚀 RPG CARAMELLATO
+    Razzo di fantasia arancione con esplosione e danno ad area.
+    Ha una ricarica più lenta delle altre armi.
+23. 🎮 LANCIA JOY-CON SWITCH
+    Un'arma a forma di console portatile, con due controller
+    laterali rosso e azzurro. Lancia piccoli Joy-Con colorati.
+24. 🔫 AK-47 CARTOON
+    Un fucile stilizzato, con parti scure e legno finto,
+    per raffiche rapide di colpi e scintille.
+
+COME USARLE
+1) Apri il gioco in Chrome o Edge.
+2) Premi GIOCA, poi CREATIVA (oppure GIOCATORE SINGOLO).
+3) Premi B per aprire l'INVENTARIO.
+4) Scorri fino alle ultime quattro armi, da 21 a 24.
+5) Premi EQUIPAGGIA sulla nuova arma.
+6) Click sinistro per sparare; Q o rotella mouse per cambiare arma.
+
+Tutte e quattro sono disponibili subito, anche in giocatore
+singolo. Non devi risolvere nuovi libri o cancellare i salvataggi.
+In multiplayer LAN le armi sono state aggiunte al server;
+gli amici devono usare tutti la stessa versione aggiornata.
+
+CONTENUTO DELLA VERSIONE
+- 24 armi totali, con modelli 3D ed effetti di sparo dedicati.
+- 15 edifici del quartiere, con bar, casinò arcade e negozi.
+- 195 caramelle e 10 nemici aggiuntivi.
+- Regola matematica: -1 caramella per ogni risposta sbagliata.
+- Multiplayer LAN fra PC sulla stessa rete (senza Internet).
+
+VERSIONE WINDOWS SENZA ESEGUIBILI
+Il pacchetto contiene solo HTML, JavaScript e file di testo,
+non EXE, BAT o installatori. Per ospitare la stanza bisogna
+installare Node.js LTS dal sito ufficiale nodejs.org.
+Non disattivare Windows Defender per giocare.
