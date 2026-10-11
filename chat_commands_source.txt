@@ -1,0 +1,153 @@
+// In-game chat, slash command palette, and live TAB player leaderboard.
+const ADMIN_COMMAND_LIST=[
+ ['/help','Elenco dei 15 comandi'],
+ ['/pistola op','Ottieni la Pistola OP (arma fortissima)'],
+ ['/kill nome|all','Manda un giocatore allo spawn'],
+ ['/freeze','Congela gli avversari'],
+ ['/unfreeze','Scongela gli avversari'],
+ ['/kick nome','Espelli un giocatore'],
+ ['/heal nome|me|all','Ripristina la salute'],
+ ['/god on|off','Invincibilità'],
+ ['/speed 1-4','Cambia velocità'],
+ ['/fly on|off','Vola'],
+ ['/tp nome','Vai da un giocatore'],
+ ['/bring nome','Porta un giocatore da te'],
+ ['/give nome numero','Regala caramelle (0–100)'],
+ ['/clear','Cancella la chat'],
+ ['/say messaggio','Annuncio per tutti']
+];
+let chatOpened=false,scoreboardOpened=false,chatCount=0,lastLocalChat=0;
+const chatInput=$('chatInput'),chatPanel=$('gameChat'),chatFeed=$('chatFeed'),chatCommands=$('commandList'),scoreboard=$('playerScoreboard');
+window.__candyAdminCommands=ADMIN_COMMAND_LIST;
+window.__candyChatState=()=>({open:chatOpened,lines:chatFeed.children.length,scoreboard:scoreboardOpened,adminOpGun,admin:gameMode!=='multi'||onlineHost});
+function addChatLine(name,message,system=false,admin=false){
+ const line=document.createElement('div');line.className='chatLine'+(system?' system':'');
+ const who=document.createElement('b');who.textContent=(admin?'👑 ':'')+String(name||'SERVER')+': ';
+ const txt=document.createElement('span');txt.textContent=String(message||'').slice(0,240);
+ line.append(who,txt);chatFeed.appendChild(line);
+ while(chatFeed.children.length>60)chatFeed.firstElementChild.remove();
+ chatFeed.scrollTop=chatFeed.scrollHeight;
+ chatPanel.classList.add('hasMessages');chatCount++;
+}
+function chatHint(message){addChatLine('SISTEMA',message,true)}
+function updateSlashHelp(){
+ if(!chatOpened)return;
+ const text=chatInput.value.trim().toLowerCase();
+ const slash=text.startsWith('/');
+ chatCommands.style.display=slash?'block':'none';
+ if(!slash)return;
+ const permitted=gameMode!=='multi'||onlineHost;
+ const matches=ADMIN_COMMAND_LIST.filter(([command])=>!text||text==='/'||command.toLowerCase().startsWith(text)||text.startsWith(command.split(' ')[0]));
+ chatCommands.innerHTML='';
+ const headline=document.createElement('div');headline.className='slashTitle';
+ headline.textContent='📜 15 COMANDI ADMIN'+(permitted?'':' · SOLO PER IL CREATORE DELLA STANZA');
+ chatCommands.appendChild(headline);
+ for(const [command,description] of (matches.length?matches:ADMIN_COMMAND_LIST)){
+  const row=document.createElement('button');row.type='button';row.className='slashOption';
+  const cmd=document.createElement('b');cmd.textContent=command;
+  const desc=document.createElement('span');desc.textContent=description;
+  row.append(cmd,desc);
+  row.addEventListener('mousedown',e=>e.preventDefault());
+  row.addEventListener('click',()=>{
+    const base=command.replace(/\s+(nome\|all|nome\|me\|all|nome|on\|off|1-4|numero|messaggio)$/,' ');
+    chatInput.value=base;chatInput.focus();updateSlashHelp();
+  });
+  chatCommands.appendChild(row);
+ }
+}
+function openChat(initial=''){
+ if(!['single','creative','multi'].includes(gameMode)||!playing||currentModal!=='game')return;
+ chatOpened=true;shooting=false;
+ for(const k of Object.keys(keyDown))keyDown[k]=false;
+ document.exitPointerLock?.();
+ chatPanel.classList.add('typing');chatInput.value=initial;
+ chatInput.focus();updateSlashHelp();
+}
+function closeChat(){
+ chatOpened=false;chatPanel.classList.remove('typing');
+ chatCommands.style.display='none';chatInput.value='';
+ chatInput.blur();for(const k of Object.keys(keyDown))keyDown[k]=false;
+ if(!paused)renderer.domElement.requestPointerLock?.();
+}
+function chatSend(){
+ const text=chatInput.value.trim().slice(0,180);
+ if(!text){closeChat();return}
+ if(text.startsWith('/')){
+  if(gameMode==='multi'){
+   if(!onlineHost){chatHint('⛔ I comandi / sono riservati all’amministratore.');closeChat();return}
+   if(!network||network.readyState!==WebSocket.OPEN){chatHint('Connettiti alla stanza LAN prima.');closeChat();return}
+   sendNet({type:'adminCommand',command:text});
+  }else runLocalAdminCommand(text);
+ }else if(gameMode==='multi'){
+  if(network&&network.readyState===WebSocket.OPEN)sendNet({type:'chat',text});
+  else chatHint('📶 Apri una stanza multiplayer sul server LAN per parlare con altri giocatori.');
+ }else addChatLine('TU',text);
+ closeChat();
+}
+chatInput.addEventListener('keydown',e=>{
+ e.stopPropagation();
+ if(e.key==='Enter'){e.preventDefault();chatSend()}
+ else if(e.key==='Escape'){e.preventDefault();closeChat()}
+});
+chatInput.addEventListener('input',updateSlashHelp);
+$('chatSendButton').addEventListener('click',chatSend);
+$('chatOpenButton').addEventListener('click',()=>openChat(''));
+function localAdminBool(key,arg){
+ if(!['on','off'].includes(arg)){chatHint('Uso: /'+key+' on oppure /'+key+' off');return}
+ cheats[key]=arg==='on';chatHint('✅ '+key.toUpperCase()+' '+arg.toUpperCase());
+}
+function runLocalAdminCommand(source){
+ const full=String(source||'').trim(),part=/^\/([a-zA-Z]+)(?:\s+(.*))?$/.exec(full);
+ if(!part){chatHint('Scrivi / per vedere tutti i comandi.');return}
+ const cmd=part[1].toLowerCase(),arg=(part[2]||'').trim(),pieces=arg.split(/\s+/);
+ switch(cmd){
+ case 'help':
+   chatHint('📜 Premi / per vedere tutti i 15 comandi.');break;
+ case 'pistola':
+   if(arg.toLowerCase()!=='op'){chatHint('Uso: /pistola op');break}
+   adminOpGun=true;chooseWeapon(24);chatHint('⚡ PISTOLA OP SBLOCCATA!');break;
+ case 'kill':
+   if(arg.toLowerCase()!=='all'){chatHint('In modalità locale usa /kill all; i nomi funzionano in multiplayer.');break}
+   localKillAll();chatHint('💥 Tutti i nemici messi KO.');break;
+ case 'freeze':cheats.freeze=true;chatHint('🧊 Nemici congelati.');break;
+ case 'unfreeze':cheats.freeze=false;chatHint('🔥 Nemici scongelati.');break;
+ case 'heal':state.hp=100;chatHint('❤️ Salute ripristinata.');break;
+ case 'god':localAdminBool('god',arg.toLowerCase());break;
+ case 'fly':localAdminBool('fly',arg.toLowerCase());break;
+ case 'speed':{
+   const n=Number(arg);if(!Number.isFinite(n)||n<1||n>4){chatHint('Uso: /speed 1-4');break}
+   adminSpeed=n;cheats.speed=n>1;chatHint('⚡ Velocità '+n+'x');break;
+ }
+ case 'tp':case 'bring':case 'kick':chatHint('Questo comando serve a gestire i giocatori connessi in multiplayer LAN.');break;
+ case 'give':{
+   const n=Number(pieces[pieces.length-1]);
+   if(!Number.isInteger(n)||n<0||n>100){chatHint('Uso: /give me 20');break}
+   state.candy+=n;chatHint('🍬 +'+n+' caramelle.');break;
+ }
+ case 'clear':chatFeed.replaceChildren();chatHint('Chat ripulita.');break;
+ case 'say':if(arg) addChatLine('📢 ADMIN',arg,true,true);else chatHint('Uso: /say messaggio');break;
+ default:chatHint('Comando sconosciuto. Scrivi /help o premi /.');
+ }
+}
+function refreshTabScoreboard(){
+ const data=gameMode==='multi'?lobbyPlayers.map(p=>({
+  name:p.name,candy:p.candy,hp:p.hp,host:!!p.host,isMe:p.id===myPlayerId
+ })):[{name:'Giocatore locale',candy:state.candy,hp:state.hp,host:true,isMe:true}];
+ data.sort((a,b)=>b.candy-a.candy);
+ const title=$('scoreboardTitle'),count=$('scoreboardCount'),rows=$('scoreboardRows');
+ title.textContent='👥 GIOCATORI '+(gameMode==='multi'?'ONLINE LAN':'LOCALI');
+ count.textContent=data.length+' / '+(gameMode==='multi'?12:1)+' connessi';
+ rows.replaceChildren();
+ data.forEach((p,i)=>{
+  const row=document.createElement('div');row.className='scoreRow'+(p.isMe?' me':'');
+  const name=document.createElement('span');name.textContent=(i+1)+'. '+(p.host?'👑 ':'')+p.name+(p.isMe?' (tu)':'');
+  const stats=document.createElement('span');stats.textContent='🍬 '+p.candy+' · ❤️ '+p.hp;
+  row.append(name,stats);rows.appendChild(row);
+ });
+}
+function showPlayerScoreboard(visible){
+ if(!['single','creative','multi'].includes(gameMode))return;
+ scoreboardOpened=!!visible;
+ if(visible)refreshTabScoreboard();
+ scoreboard.style.display=visible?'block':'none';
+}
