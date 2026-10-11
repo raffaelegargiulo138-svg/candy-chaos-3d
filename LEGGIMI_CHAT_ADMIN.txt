@@ -1,0 +1,61 @@
+CANDY CHAOS 3D — CHAT, ADMIN E 25 TRUCCHI
+=========================================
+NOVITÀ
+
+T — Apri la CHAT, scrivi e premi INVIO. ESC per chiudere.
+ / — Apre la CHAT con l'elenco dei 15 comandi admin.
+TAB — Mostra i giocatori connessi e le loro caramelle.
+X — Apre il pannello con 25 trucchi (interruttori e azioni).
+B — Inventario e armi, compresa la pistola OP sbloccabile.
+
+15 COMANDI AMMINISTRATORE
+ /help                   Elenco comandi
+ /pistola op             Ottieni la Pistola OP dorata
+ /kill nome              Manda un giocatore allo spawn
+ /kill all               Manda tutti gli altri allo spawn
+ /freeze                 Blocca gli avversari
+ /unfreeze               Sblocca gli avversari
+ /kick nome              Espelli un giocatore
+ /heal me                Recupera 100 salute
+ /heal nome              Cura un altro giocatore
+ /heal all               Cura tutti
+ /god on                 Invulnerabilità admin
+ /god off                Torna normale
+ /speed 1                Velocità normale
+ /speed 4                Velocità quadruplicata
+ /fly on                 Abilita volo
+ /fly off                Disabilita volo
+ /tp nome                Vai da un giocatore
+ /bring nome             Porta un giocatore da te
+ /give nome 20           Regala 20 caramelle
+ /clear                  Pulisci la chat
+ /say messaggio          Annuncio a tutta la stanza
+
+Questi sono 15 comandi principali con parametri; alcune varianti
+(es. /kill all) fanno parte dello stesso comando.
+
+I 25 TRUCCHI DEL MENU X
+1 Fly, 2 Aimbot, 3 Freeze, 4 One Shot, 5 God Mode,
+6 Super Speed, 7 Super Jump, 8 Energia infinita, 9 NoClip,
+10 Invisibilità, 11 Mega Damage, 12 Rapid Fire,
+13 Mega Esplosioni, 14 Magnete Caramelle, 15 Rigenerazione,
+16 Scudo, 17 Bassa Gravità, 18 Super Scatto,
+19 Colpi Giganti, 20 Radar, 21 Disco, 22 Kill All,
+23 Tutte le Caramelle, 24 Cura Completa, 25 Teletrasporto.
+
+MULTIPLAYER LAN
+La CHAT viene trasmessa veramente agli altri giocatori collegati
+alla STESSA stanza. TAB mostra i giocatori della stanza, non
+l'elenco di chi usa il sito.
+I comandi '/' e i trucchi che cambiano la partita sono riservati
+al CREATORE della stanza, e il server controlla i permessi.
+I giocatori devono usare TUTTI questa stessa versione aggiornata.
+Serve un PC Windows con Node.js LTS ufficiale per ospitare il server.
+Esegui 'node server.js' nella cartella estratta, apri
+http://localhost:3000; gli amici aprono il link LAN dello host.
+
+SICUREZZA WINDOWS
+Lo ZIP contiene HTML/JavaScript e testo, senza EXE o BAT.
+Il server è limitato alla rete privata, ma la connessione
+HTTP su Wi-Fi NON è cifrata. Non disattivare Windows Defender
+né SmartScreen; il pacchetto non ha firma Microsoft.
