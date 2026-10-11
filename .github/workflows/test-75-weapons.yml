@@ -1,0 +1,107 @@
+name: Verify Candy Chaos 75 weapons
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/test-75-weapons.yml
+  workflow_dispatch:
+jobs:
+  browser-and-lan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install offline browser testing
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save playwright-core@1.56.1 ws@8
+      - name: Run game in real Chromium and check all 50 new weapons
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server.js
+          node server.js >/tmp/candy-75.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          sleep 2
+          node - <<'NODE'
+          const {chromium}=require('playwright-core');
+          const WS=require('ws');
+          const assert=require('node:assert/strict');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const next=(socket,type)=>new Promise((resolve,reject)=>{
+            const timer=setTimeout(()=>{socket.off('message',onMsg);reject(new Error('Timeout for '+type))},8000);
+            const onMsg=raw=>{let m;try{m=JSON.parse(raw)}catch{return}if(m.type===type){socket.off('message',onMsg);clearTimeout(timer);resolve(m)}};
+            socket.on('message',onMsg);
+          });
+          async function run(){
+            const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/google-chrome',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader']});
+            const page=await browser.newPage({viewport:{width:1440,height:900}});
+            const errs=[];let external=0;
+            page.on('pageerror',e=>{errs.push(e.message);console.error('BROWSER_ERROR',e.stack)});
+            await page.route('**/*',route=>{
+              const h=new URL(route.request().url()).hostname;
+              if(h==='127.0.0.1'||h==='localhost')route.continue();
+              else{external++;route.abort()}
+            });
+            try{
+              await page.goto('http://127.0.0.1:3000/',{waitUntil:'domcontentloaded',timeout:60000});
+              await page.waitForFunction(()=>window.__candyBoot===true,null,{timeout:80000});
+              const catalog=await page.evaluate(()=>window.__candyWeaponCatalog);
+              assert.equal(catalog.length,75,'75 weapons expected');
+              assert.equal(new Set(catalog.map(x=>x.name)).size,75,'Weapon names must be distinct');
+              await page.locator('#playCard').click();
+              await page.locator('#creativeCard').click();
+              await page.keyboard.press('b');
+              assert.equal(await page.locator('.weaponTile[data-group="new"]').count(),50);
+              assert.equal(await page.locator('#weaponCount').textContent(),'50 armi visualizzate');
+              await page.locator('.pickWeapon[data-w="25"]').click();
+              const first=await page.locator('#weaponTitle').textContent();
+              assert.ok(first.includes(catalog[25].name));
+              console.log('INVENTORY FILTER AND EQUIP PASS');
+              let passed=0;
+              for(let i=25;i<75;i++){
+                const weapon=catalog[i];
+                const result=await page.evaluate(idx=>{
+                  chooseWeapon(idx);
+                  const meshes=heldDecor.children.length,selected=state.weapon;
+                  const before=window.__candyShotCount||0;
+                  state.shotCD=0;
+                  fire();
+                  return {selected,meshes,shot:window.__candyShotCount>before,last:window.__candyLastFiredWeapon,kind:weapons[idx].kind};
+                },i);
+                assert.equal(result.selected,i,'Equip '+weapon.name);
+                assert.ok(result.meshes>=3,'3D model has insufficient geometry '+weapon.name);
+                assert.equal(result.shot,true,'Weapon failed to fire '+weapon.name);
+                assert.equal(result.last,i,'Wrong shot '+weapon.name);
+                passed++;
+                if(i%10===4)console.log('BROWSER_WEAPON_BATCH',i,weapon.name,result.kind);
+              }
+              assert.equal(passed,50);
+              assert.deepEqual(errs,[],'No browser JavaScript errors');
+              assert.equal(external,0,'Game must be offline self contained');
+              console.log('BROWSER PASS all 50 weapons, 75 total, all 3D models, no external resources');
+            }finally{await browser.close()}
+            const wsA=new WS('ws://127.0.0.1:3000/ws',{origin:'http://127.0.0.1:3000'});
+            const wsB=new WS('ws://127.0.0.1:3000/ws',{origin:'http://127.0.0.1:3000'});
+            try{
+              await Promise.all([new Promise(ok=>wsA.once('open',ok)),new Promise(ok=>wsB.once('open',ok))]);
+              let promise=next(wsA,'joined');wsA.send(JSON.stringify({type:'create',name:'Admin'}));
+              const room=await promise;promise=next(wsB,'joined');
+              wsB.send(JSON.stringify({type:'join',name:'Player 2',code:room.code}));await promise;
+              const startA=next(wsA,'matchStart'),startB=next(wsB,'matchStart');
+              wsA.send(JSON.stringify({type:'start'}));await Promise.all([startA,startB]);
+              for(const n of [25,33,47,58,74]){
+                const shot=next(wsA,'playerShot');
+                wsA.send(JSON.stringify({type:'fire',weapon:n}));
+                assert.equal((await shot).weapon,n,'LAN server must process '+n);
+                console.log('LAN_SHOT_OK',n);await sleep(2400);
+              }
+              console.log('MULTIPLAYER PASS 5 new weapons in real 2-client server room');
+            }finally{wsA.close();wsB.close()}
+          }
+          run().then(()=>process.exit(0),e=>{console.error('TEST FAILURE',e.stack||e);process.exit(1)});
+          NODE
