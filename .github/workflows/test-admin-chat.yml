@@ -1,0 +1,133 @@
+name: Verify Chat Admin and 25 Cheats
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/test-admin-chat.yml
+  workflow_dispatch:
+jobs:
+  browser-and-lan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install browser driver
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save playwright-core@1.56.1
+      - name: Run browser and two-client LAN regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server.js
+          node --check admin_console.js
+          node server.js >/tmp/candy-lan.log 2>&1 &
+          S=$!
+          trap 'kill "$S" 2>/dev/null || true' EXIT
+          sleep 3
+          cat > /tmp/test-admin-chat.js <<'NODE'
+          'use strict';
+          const assert=require('node:assert/strict'),{chromium}=require(process.cwd()+'/node_modules/playwright-core');
+          const {ADMIN_COMMANDS,ALLOWED_CHEATS}=require(process.cwd()+'/admin_console.js');
+          assert.equal(ADMIN_COMMANDS.length,15);
+          assert.equal(ALLOWED_CHEATS.size,21);
+          const delay=ms=>new Promise(r=>setTimeout(r,ms));
+          async function client(){
+            const ws=new WebSocket('ws://127.0.0.1:3000/ws');
+            const packets=[];
+            ws.addEventListener('message',event=>{try{packets.push(JSON.parse(event.data))}catch(e){}});
+            await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true})});
+            return {ws,packets,send:obj=>ws.send(JSON.stringify(obj)),wait:async fn=>{
+              for(let t=0;t<150;t++){const i=packets.findIndex(fn);if(i>=0)return packets.splice(i,1)[0];await delay(100)}
+              throw Error('No expected packet. Recent: '+JSON.stringify(packets.slice(-8)));
+            }};
+          }
+          async function lan(){
+            const a=await client(),b=await client(),c=await client();
+            try{
+              a.send({type:'create',name:'Capitano'});
+              const joined=await a.wait(x=>x.type==='joined');
+              b.send({type:'join',code:joined.code,name:'Compagno'});
+              const bjoin=await b.wait(x=>x.type==='joined');
+              c.send({type:'join',code:joined.code,name:'Ospite'});
+              await c.wait(x=>x.type==='joined');
+              a.send({type:'start'});
+              await a.wait(x=>x.type==='matchStart');
+              await b.wait(x=>x.type==='matchStart');
+              await c.wait(x=>x.type==='matchStart');
+              b.send({type:'chat',text:'ciao dalla stanza'});
+              const bchat=await a.wait(x=>x.type==='chat'&&x.text==='ciao dalla stanza');
+              assert.equal(bchat.name,'Compagno');
+              console.log('LAN_CHAT_BROADCAST_OK');
+              b.send({type:'adminCommand',command:'/pistola op'});
+              await b.wait(x=>x.type==='chat'&&x.system&&/Solo il creatore/.test(x.text));
+              b.send({type:'fire',weapon:24});
+              await delay(300);
+              assert.equal(a.packets.some(x=>x.type==='playerShot'&&x.id===bjoin.id&&x.weapon===24),false);
+              a.send({type:'adminCommand',command:'/pistola op'});
+              await a.wait(x=>x.type==='opGun'&&x.enabled===true);
+              await delay(100);
+              a.send({type:'fire',weapon:24});
+              await a.wait(x=>x.type==='playerShot'&&x.weapon===24);
+              console.log('OP_GUN_ADMIN_ONLY_OK');
+              a.send({type:'adminCommand',command:'/give Compagno 15'});
+              await b.wait(x=>x.type==='state'&&x.players.some(p=>p.id===bjoin.id&&p.candy>=15));
+              a.send({type:'adminCommand',command:'/freeze'});
+              await a.wait(x=>x.type==='cheatState'&&x.freeze);
+              a.send({type:'adminCommand',command:'/unfreeze'});
+              await b.wait(x=>x.type==='cheatState'&&!x.freeze);
+              a.send({type:'adminCommand',command:'/say Test avviso'});
+              await b.wait(x=>x.type==='chat'&&x.name.startsWith('📢 ADMIN')&&x.text==='Test avviso');
+              a.send({type:'adminCommand',command:'/kill Compagno'});
+              await b.wait(x=>x.type==='adminTeleport'&&x.reason==='kill');
+              a.send({type:'adminCommand',command:'/heal all'});
+              await a.wait(x=>x.type==='chat'&&/Salute ripristinata/.test(x.text));
+              a.send({type:'adminCommand',command:'/clear'});
+              await b.wait(x=>x.type==='chatClear');
+              a.send({type:'adminCommand',command:'/kick Compagno'});
+              await b.wait(x=>x.type==='kicked');
+              console.log('15_ADMIN_COMMANDS_AND_AUTHORIZATION_OK');
+            }finally{a.ws.close();b.ws.close();c.ws.close()}
+          }
+          async function browser(){
+            const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/google-chrome',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader']});
+            try{
+              const page=await browser.newPage({viewport:{width:1280,height:880}});
+              const errors=[];page.on('pageerror',e=>{console.error('PAGE_ERROR',e.stack);errors.push(e.message)});
+              await page.goto('http://127.0.0.1:3000/',{waitUntil:'domcontentloaded',timeout:60000});
+              await page.waitForFunction(()=>window.__candyBoot===true,null,{timeout:65000});
+              assert.equal(await page.evaluate(()=>window.__candyAdminCommands.length),15);
+              assert.equal(await page.evaluate(()=>window.__candyCheatCatalog.length),25);
+              assert.equal(await page.evaluate(()=>window.__candyWeaponCatalog.length),25);
+              await page.locator('#playCard').click({timeout:30000});
+              await page.locator('#creativeCard').click({timeout:30000});
+              await page.keyboard.press('x');
+              assert.equal(await page.locator('.cheatToggle').count(),25);
+              await page.locator('.cheatToggle[data-cheat=god]').click();
+              assert.equal(await page.evaluate(()=>window.__candyCheats.god),true);
+              await page.locator('#modalActions button').first().click();
+              await page.keyboard.press('t');
+              assert.equal(await page.locator('#chatInput').evaluate(el=>document.activeElement===el),true);
+              await page.locator('#chatInput').fill('Ciao da browser');
+              await page.keyboard.press('Enter');
+              assert.ok((await page.locator('#chatFeed').innerText()).includes('Ciao da browser'));
+              await page.keyboard.press('/');
+              assert.equal(await page.locator('.slashOption').count(),15);
+              await page.locator('#chatInput').fill('/pistola op');
+              await page.keyboard.press('Enter');
+              await page.waitForFunction(()=>window.__candyChatState().adminOpGun===true);
+              assert.ok((await page.locator('#weaponTitle').innerText()).includes('Pistola OP'));
+              await page.keyboard.down('Tab');
+              assert.equal(await page.locator('#playerScoreboard').evaluate(x=>x.style.display),'block');
+              await page.keyboard.up('Tab');
+              assert.equal(await page.locator('#playerScoreboard').evaluate(x=>x.style.display),'none');
+              assert.deepEqual(errors,[]);
+              console.log('CHROME_T_CHAT_SLASH_15_TAB_X_25_OP_GUN_OK');
+            }finally{await browser.close()}
+          }
+          (async()=>{await lan();await browser();})().catch(e=>{console.error('TEST_FAILED',e.stack||e);process.exit(1)});
+          NODE
+          node /tmp/test-admin-chat.js
