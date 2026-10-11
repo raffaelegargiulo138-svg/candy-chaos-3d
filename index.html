@@ -1252,7 +1252,39 @@ function start(){resume();toast('🍬 ESPLORA, SALTA, RISOLVI I LIBRI E TROVA I 
 function chooseWeapon(i){if(i<0||i>=weapons.length)return;if(i===24&&!adminOpGun){toast('🔒 Pistola OP: usa /pistola op come amministratore.');return}if(gameMode!=='creative'&&i!==0&&i<20&&!state.books.includes(i-1)){toast('📖 Devi risolvere l’operazione del libro!');return}state.weapon=i;const w=weapons[i];$('weaponTitle').textContent=w.emoji+' '+w.name;buildHeldWeapon(i);$('weaponInfo').textContent='✨ '+FX_STYLE[i][1]+' → '+FX_STYLE[i][2]+' · click destro mira · Q cambia';toast('✨ '+w.name+' equipaggiata!');safeSave()}
 function switchWeapon(){for(let i=1;i<=weapons.length;i++){let n=(state.weapon+i)%weapons.length;if((n===24?adminOpGun:gameMode==='creative'||n===0||n>=20||state.books.includes(n-1))){chooseWeapon(n);break}}}
 chooseWeapon(clamp(state.weapon,0,weapons.length-1));
-function inventory(){let tiles=weapons.map((w,i)=>{let ok=(i===24?adminOpGun:gameMode==='creative'||i===0||i>=20||state.books.includes(i-1));return `<div class="tile ${ok?'':'dim'}"><b>${i+1}. ${w.emoji} ${w.name}</b><span>${w.description}</span><span>${ok?'✅ SBLOCCATA':'🔒 RISOLVI IL LIBRO'}</span><button class="btn pickWeapon" data-w="${i}" ${ok?'':'disabled'}>Equipaggia</button></div>`}).join('');uiModal('🎒 Equipaggiamento',`<p>${gameMode==='creative'?'Modalità Creativa: tutte le 74 armi normali sono già disponibili.':'Le 4 nuove armi sono subito disponibili! Per sbloccare le altre 19 devi risolvere i libri. Pistola OP: /pistola op.'}</p><div class="tiles">${tiles}</div>`,[{text:'▶ TORNA AL GIOCO',fn:resume}],'INVENTARIO');document.querySelectorAll('.pickWeapon').forEach(el=>el.onclick=()=>{chooseWeapon(+el.dataset.w);resume()})}
+function inventory(){
+ const tiles=weapons.map((w,i)=>{
+  const ok=i===24?adminOpGun:(gameMode==='creative'||i===0||i>=20||state.books.includes(i-1));
+  const group=i>=25?'new':i===24?'admin':'classic';
+  const searchable=escapeHTML((i+1)+' '+w.name.toLowerCase());
+  return '<div class="tile weaponTile'+(ok?'':' dim')+'" data-group="'+group+'" data-q="'+searchable+'">'+
+   '<b>'+(i+1)+'. '+w.emoji+' '+escapeHTML(w.name)+'</b>'+
+   '<span>'+escapeHTML(w.description)+'</span>'+
+   '<span>'+(ok?'✅ SBLOCCATA':'🔒 RISOLVI IL LIBRO')+'</span>'+
+   '<button class="btn pickWeapon" data-w="'+i+'" '+(ok?'':'disabled')+'>Equipaggia</button></div>';
+ }).join('');
+ const filters='<div class="feature" style="display:flex;flex-wrap:wrap;gap:8px">'+
+  '<input class="field" id="weaponSearch" autocomplete="off" style="flex:2;min-width:140px" placeholder="🔎 Cerca un’arma o il numero...">'+
+  '<select class="field" id="weaponFilter" style="flex:1;min-width:160px">'+
+  '<option value="new">✨ 50 NUOVE ARMI</option><option value="all">Tutte le 75 armi</option>'+
+  '<option value="classic">24 armi originali</option><option value="admin">Pistola OP</option></select></div>'+
+  '<p class="smalltext" id="weaponCount"></p>';
+ uiModal('🎒 ARSENALE · 75 ARMI',
+   '<p>🎮 <b>50 nuove armi subito disponibili!</b> Rimangono le 24 classiche e la Pistola OP riservata all’amministratore (comando /pistola op).</p>'+
+   filters+'<div class="tiles" id="weaponTiles">'+tiles+'</div>',
+   [{text:'▶ TORNA AL GIOCO',fn:resume}],'INVENTARIO');
+ const filter=()=>{
+   const group=$('weaponFilter').value,q=$('weaponSearch').value.trim().toLocaleLowerCase();let shown=0;
+   document.querySelectorAll('.weaponTile').forEach(tile=>{
+    const visible=(group==='all'||tile.dataset.group===group)&&tile.dataset.q.includes(q);
+    tile.style.display=visible?'':'none';if(visible)shown++;
+   });$('weaponCount').textContent=shown+' armi visualizzate';
+ };
+ $('weaponSearch').addEventListener('input',filter);
+ $('weaponFilter').addEventListener('change',filter);
+ filter();
+ document.querySelectorAll('.pickWeapon').forEach(el=>el.onclick=()=>{chooseWeapon(Number(el.dataset.w));resume()});
+}
 function endingsMenu(){if(gameMode==='multi'){toast('🏆 In multiplayer vince chi raccoglie più caramelle!');return}const markup=endings.map(e=>{let ok=e.ok(),done=state.finals.includes(e.id);return `<div class="tile ${ok?'':'dim'}"><b>${e.id}. ${e.emoji} ${e.title}</b><span>${e.need}</span><span>${done?'🏅 FINALE GIÀ SCOPERTO':ok?'✅ DISPONIBILE':'🔒 ANCORA BLOCCATO'}</span><button class="btn doEnding" data-id="${e.id}" ${ok?'':'disabled'}>${done?'Rivedi finale':'Scopri il finale'}</button></div>`}).join('');uiModal('🏆 I 20 finali di Candy Chaos',`<p><b>${state.finals.length}/20 finali scoperti.</b> Ogni finale richiede una vera sfida. Alcuni possono essere completati senza combattimenti! I progressi vengono salvati sul browser.</p><div class="tiles">${markup}</div>`,[{text:'▶ CONTINUA A ESPLORARE',fn:resume}],'LIBRO DEI DESTINI');document.querySelectorAll('.doEnding').forEach(el=>el.onclick=()=>completeEnding(+el.dataset.id))}
 function completeEnding(id){const e=endings.find(v=>v.id===id);if(!e||!e.ok()){toast('Devi ancora soddisfare le condizioni!');return}if(!state.finals.includes(id))state.finals.push(id);safeSave();puff(state.x,1.7,state.z,0xffd277,50,10);uiModal(`${e.emoji} FINALE ${e.id}: ${e.title.toUpperCase()}`,`<p style="font-size:17px">${e.story}</p><div class="feature">🏅 Finali sbloccati: <b>${state.finals.length} su 20</b> · Caramelle: <b>${state.candy}/${TOTAL_CANDY}</b> · Libri: <b>${state.books.length}/${bookDefs.length}</b></div><p>Questo è uno dei 20 finali alternativi. Puoi continuare nella stessa partita e scoprirli tutti!</p>`,[{text:'🌍 CONTINUA IL MONDO APERTO',fn:resume},{text:'📜 VEDI TUTTI I FINALI',fn:endingsMenu,secondary:true}],'FINALE SCOPERTO')}
 function showMap(){mapExpanded=!mapExpanded;$('minimap').style.width=mapExpanded?'300px':'170px';$('minimap').style.height=mapExpanded?'300px':'170px';toast(mapExpanded?'🗺️ Mappa ingrandita':'🗺️ Mappa normale')}
@@ -1477,7 +1509,7 @@ const mc=$('minimap').getContext('2d');function drawMinimap(){const w=340,scale=
 let hudTick=0;function updateHUD(dt){hudTick-=dt;if(hudTick>0)return;hudTick=.12;$('hpText').textContent=Math.ceil(state.hp);$('hpBar').style.width=clamp(state.hp,0,100)+'%';$('stText').textContent=Math.ceil(state.st);$('stBar').style.width=clamp(state.st,0,100)+'%';$('stats').innerHTML=`🍬 <b>${state.candy}/${TOTAL_CANDY}</b> · 🛍️ <b>${cosmeticState.candies}</b> · 📖 <b>${state.books.length}/${bookDefs.length}</b> · ⭐ <b>${state.finals.length}/20</b><br>🏃 Salti: ${state.jumps} · 🪝 Rampino: ${state.grapples} · 🤝 Aiuti: ${state.quests}/3`;
  let closest=nearest();$('context').textContent=closest?`[ E ] ${closest.name}`:'';
  if(gameMode==='multi')$('missionText').textContent='Gara online: raccogli più caramelle degli altri! Colpisci un avversario con i poteri cartoon per ottenere le sue caramelle. Vince chi ne ha di più allo scadere.';
- else if(gameMode==='creative')$('missionText').textContent='MODALITÀ CREATIVA: non puoi perdere e hai tutte le 24 armi. Esplora liberamente, mira e fai parkour.';
+ else if(gameMode==='creative')$('missionText').textContent='MODALITÀ CREATIVA: non puoi perdere e hai tutte le 74 armi normali. Esplora liberamente, mira e fai parkour.';
  else if(state.candy>=TOTAL_CANDY)$('missionText').textContent='Hai raccolto tutte le caramelle! Premi J e scopri il finale 1. Puoi puntare anche al finale 20.';
  else if(state.books.length<3)$('missionText').textContent='Entra nelle classi e risolvi le operazioni matematiche nei libri. ' + state.books.length+'/12 libri completati. Premi J per i finali.';
  else $('missionText').textContent='Esplora i nuovi quartieri, raggiungi i tetti, usa il rampino e affronta preside volante e vicepreside-talpa. ' + state.candy+'/'+TOTAL_CANDY+' caramelle raccolte.';
