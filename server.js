@@ -13,6 +13,11 @@ const rooms=new Map(),sockets=new Set();
 const RATE=[220,90,850,550,390,380,70,1100,190,140,1350,800,3000,240,650,300,1200,480,180,1700,310,1450,350,105,85];
 const POWER=[7,4,20,15,12,11,3,14,10,6,24,23,25,9,17,8,19,12,8,22,11,28,14,8,72];
 const KINDS=['shot','shot','boom','melee','melee','shot','shot','nova','shot','shot','boom','melee','nova','shot','boom','shot','nova','shot','shot','boom','shot','boom','shot','shot','shot'];
+// 50 additional weapon IDs (25-74), enforced server-side for fair LAN multiplayer.
+RATE.push(...[930,210,170,280,220,370,1050,1700,820,1160,85,390,400,790,1120,150,720,700,1300,2300,250,120,660,290,820,110,95,190,2100,370,130,270,1020,320,160,480,1920,520,220,1380,330,110,730,950,240,2100,360,1890,1080,420]);
+POWER.push(...[23,9,8,13,8,11,24,25,19,29,5,12,20,29,25,10,17,18,18,30,9,6,27,11,23,5,5,9,31,19,6,11,24,10,7,19,25,16,11,31,10,5,25,22,11,29,8,26,22,23]);
+KINDS.push(...["boom","shot","shot","shot","shot","shot","boom","nova","boom","boom","shot","shot","melee","melee","boom","shot","boom","boom","nova","nova","shot","shot","melee","shot","boom","shot","shot","shot","nova","melee","shot","shot","boom","shot","shot","melee","nova","shot","shot","boom","shot","shot","melee","boom","shot","nova","shot","nova","boom","melee"]);
+if(RATE.length!==75||POWER.length!==75||KINDS.length!==75)throw new Error('LAN weapon catalog mismatch');
 function candyLocations(){
   const a=[];
   for(const [x,z] of [[-19,-34.5],[19,-34.5],[-19,-15.5],[19,-15.5],[-19,5],[19,5]])
@@ -208,7 +213,8 @@ function message(c,msg){
     const now=Date.now(),delta=Math.max(.06,Math.min(6,(now-(p.lastMove||now-1000))/1000));
     if(p.lastMove&&Math.hypot(x-p.x,z-p.z)>Math.max(10,delta*34*(p.id===r.host?(r.adminSpeed||1):1)*(p.id===r.host&&r.cheats.superDash?1.4:1)))return;
     p.x=x;p.y=y;p.z=z;p.yaw=yaw;p.pitch=pitch;p.lastMove=now;
-    p.weapon=Math.max(0,Math.min(p.opGun&&p.id===r.host?24:23,Math.round(Number(msg.weapon)||0)));
+    const requested=Math.max(0,Math.min(RATE.length-1,Math.round(Number(msg.weapon)||0)));
+    p.weapon=requested===24&&!(p.opGun&&p.id===r.host)?0:requested;
     return;
   }
   if(msg.type==='pickup'){
@@ -219,10 +225,10 @@ function message(c,msg){
   }
   if(msg.type==='fire'){
     const w=Number(msg.weapon),now=Date.now();
-    if(!Number.isInteger(w)||w<0||w>=25||(w===24&&!(p.id===r.host&&p.opGun))||now-p.lastFire<Math.max(p.id===r.host&&r.cheats.rapidFire?35:65,RATE[w]*(p.id===r.host&&r.cheats.rapidFire?.30:.87)))return;
+    if(!Number.isInteger(w)||w<0||w>=RATE.length||(w===24&&!(p.id===r.host&&p.opGun))||now-p.lastFire<Math.max(p.id===r.host&&r.cheats.rapidFire?35:65,RATE[w]*(p.id===r.host&&r.cheats.rapidFire?.30:.87)))return;
     p.lastFire=now;
     const kind=KINDS[w],forward={x:-Math.sin(p.yaw)*Math.cos(p.pitch),y:Math.sin(p.pitch),z:-Math.cos(p.yaw)*Math.cos(p.pitch)};
-    const range=kind==='nova'?9:kind==='melee'?4.4:[2,10,14,19,21].includes(w)?49:51;
+    const range=kind==='nova'?9:kind==='melee'?4.4:kind==='boom'?49:51;
     everyone(r,{type:'playerShot',id:p.id,weapon:w,x:p.x,y:p.y,z:p.z,yaw:p.yaw,pitch:p.pitch});
     let target=null,best=Infinity;
     for(const q of r.players.values()){
@@ -234,9 +240,9 @@ function message(c,msg){
     }
     if(!target)return;
     // RPG: tag nearby opponents around the first impact (cartoon blast).
-    const victims=w===21?[...r.players.values()].filter(q=>q.id!==p.id && now>=q.immune && !(q.id===r.host&&r.cheats.god)&&Math.hypot(q.x-target.x,q.y-target.y,q.z-target.z)<(r.cheats.hugeBlast&&p.id===r.host?13:7.5)):[target];
+    const victims=kind==='boom'?[...r.players.values()].filter(q=>q.id!==p.id && now>=q.immune && !(q.id===r.host&&r.cheats.god)&&Math.hypot(q.x-target.x,q.y-target.y,q.z-target.z)<(r.cheats.hugeBlast&&p.id===r.host?13:(w===21?7.5:4.5))):[target];
     for(const victim of victims){
-      let damage=w===21?Math.round(POWER[w]*.78):POWER[w];
+      let damage=kind==='boom'?Math.round(POWER[w]*(w===21?.78:.72)):POWER[w];
       if(p.id===r.host&&r.cheats.instantKO)damage=1000;
       else if(p.id===r.host&&r.cheats.megaDamage)damage*=3;
       if(victim.id===r.host&&r.cheats.shield)damage=Math.max(1,Math.round(damage*.25));
