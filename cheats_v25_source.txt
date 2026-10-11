@@ -1,0 +1,133 @@
+// A single, working 25-cheat console. The server validates multiplayer changes.
+const CHEAT_CATALOG=[
+ ['fly','🪽','FLY','SPAZIO sale, CTRL scende, WASD vola'],
+ ['aimbot','🎯','AIMBOT','Mira automatica verso il bersaglio più vicino'],
+ ['freeze','🧊','FREEZE','Blocca gli avversari / nemici'],
+ ['instantKO','💥','ONE SHOT','Un solo colpo mette KO'],
+ ['god','🛡️','GOD MODE','Invulnerabilità'],
+ ['speed','⚡','SUPER SPEED','Corri più veloce'],
+ ['superJump','🦘','SUPER JUMP','Salti molto più in alto'],
+ ['stamina','♾️','ENERGIA INFINITA','La barra stamina non cala'],
+ ['noclip','👻','NOCLIP','Attraversa i muri'],
+ ['invis','🫥','INVISIBILITÀ','I nemici non vedono il giocatore'],
+ ['megaDamage','🔴','MEGA DAMAGE','Colpi con triplo danno'],
+ ['rapidFire','🔥','RAPID FIRE','Aumenta la cadenza di fuoco'],
+ ['hugeBlast','💣','MEGA ESPLOSIONI','Area di esplosione più ampia'],
+ ['candyMagnet','🧲','MAGNETE CARAMELLE','Raccogli dolci anche a distanza'],
+ ['regen','💚','RIGENERAZIONE','Recupero salute continuo'],
+ ['shield','🛡️','SCUDO','Riduce il danno subito'],
+ ['lowGravity','🌙','BASSA GRAVITÀ','Caduta più lenta'],
+ ['superDash','💨','SUPER SCATTO','Scatta velocissimo'],
+ ['bigShots','🟡','COLPI GIGANTI','Proiettili più grandi e precisi'],
+ ['radar','📡','RADAR','Mostra il nemico più vicino'],
+ ['disco','🌈','DISCO','Luci colorate in movimento'],
+ ['killall','💀','KILL ALL','Manda KO tutti gli avversari (azione)'],
+ ['collectAll','🍬','TUTTE LE CARAMELLE','Raccogli tutti i dolci rimasti (azione)'],
+ ['fullHeal','❤️','CURA COMPLETA','Ripristina subito 100 HP (azione)'],
+ ['teleportHome','🏠','TELETRASPORTO','Torna subito al cortile (azione)']
+];
+const CHEAT_ACTIONS=new Set(['killall','collectAll','fullHeal','teleportHome']);
+const cheats=Object.fromEntries(CHEAT_CATALOG.filter(c=>!CHEAT_ACTIONS.has(c[0])).map(c=>[c[0],false]));
+let roomFreeze=false,adminSpeed=1;
+window.__candyCheats=cheats;
+window.__candyCheatCatalog=CHEAT_CATALOG.map(c=>({id:c[0],name:c[2],action:CHEAT_ACTIONS.has(c[0])}));
+function cheatPermission(){return gameMode!=='multi'||(onlineHost&&!!onlineRoom)}
+function localKillAll(){
+ let n=0;
+ for(const e of enemies){
+  if(!e.alive)continue;
+  e.alive=false;e.hp=0;e.group.visible=false;e.respawn=37;
+  setEnemyBar(e);n++;state.enemyDefeats[e.type]=(state.enemyDefeats[e.type]||0)+1;
+  if(e.type==='preside')state.bossDefeated=true;
+  if(e.type==='vice')state.viceDefeated=true;
+  if(e.type==='bullo')state.bullyDefeated=true;
+ }
+ toast('💥 KILL ALL: '+n+' nemici KO!',2);safeSave();
+}
+function collectCandyAll(){
+ let n=0;
+ for(const c of [...pickups]){
+  if(state.collected.includes(c.id))continue;
+  n++;state.collected.push(c.id);scene.remove(c.mesh);
+  const at=pickups.indexOf(c);if(at>=0)pickups.splice(at,1);
+ }
+ state.candy+=n;if(gameMode==='single')addCosmeticCandies(n*5);
+ safeSave();toast('🍬 +'+n+' CARAMELLE!',2);
+}
+function localTeleportHome(){
+ state.x=0;state.y=0;state.z=27;state.vx=0;state.vy=0;state.vz=0;
+ player.position.set(0,0,27);toast('🏠 Tornato al cortile!',2);
+}
+function cheatMenu(){
+ if(!['single','creative','multi'].includes(gameMode))return;
+ const allowed=cheatPermission();
+ const rows=CHEAT_CATALOG.map(([key,ico,title,desc],i)=>{
+  const action=CHEAT_ACTIONS.has(key),value=key==='freeze'&&gameMode==='multi'?roomFreeze:cheats[key];
+  return '<div class="tile cheatTile"><b>'+(i+1)+'. '+ico+' '+title+' '+(action?'':value?' — 🟢 ON':' — ⚪ OFF')+'</b><span>'+desc+'</span><button class="btn cheatToggle" data-cheat="'+key+'" '+(allowed?'':'disabled')+'>'+(action?'ESEGUI':value?'DISATTIVA':'ATTIVA')+'</button></div>';
+ }).join('');
+ uiModal('🧩 25 TRUCCHI · X',
+  '<p>Attiva i trucchi o esegui azioni. <b>X</b> riapre il pannello. '+(gameMode==='multi'?'📡 Solo l’amministratore può attivarli; le modifiche importanti vengono convalidate dal server.':'Funzionano in modalità Singolo e Creativa.')+'</p>'+
+  '<div class="tiles" id="cheatTiles">'+rows+'</div>',
+  [{text:'▶ CONTINUA A GIOCARE',fn:resume},{text:'⛔ SPEGNI TUTTI',fn:()=>{
+    for(const k in cheats)if(cheats[k]){cheats[k]=false;if(gameMode==='multi'&&onlineHost&&netReady)sendNet({type:'hostCheat',action:k,enabled:false})}
+    roomFreeze=false;cheatMenu();
+  },secondary:true,disabled:!allowed}],'TRUCCHI');
+ document.querySelectorAll('.cheatToggle').forEach(button=>button.onclick=()=>applyCheat(button.dataset.cheat));
+}
+function applyCheat(key){
+ if(!cheatPermission()){toast('🔒 Solo admin in multiplayer',2);return}
+ if(!CHEAT_CATALOG.some(c=>c[0]===key))return;
+ if(gameMode==='multi'&&!netReady){toast('⏳ Avvia la gara prima di usare i trucchi!',2);return}
+ if(CHEAT_ACTIONS.has(key)){
+  if(gameMode==='multi')sendNet({type:'hostCheat',action:key});
+  else if(key==='killall')localKillAll();
+  else if(key==='collectAll')collectCandyAll();
+  else if(key==='fullHeal'){state.hp=100;toast('❤️ Salute al massimo!',2)}
+  else if(key==='teleportHome')localTeleportHome();
+ }else{
+  cheats[key]=!cheats[key];
+  if(gameMode==='multi'){
+   sendNet({type:'hostCheat',action:key,enabled:cheats[key]});
+   if(key==='freeze')roomFreeze=cheats[key];
+  }
+  if(key==='fly'){state.vy=0;state.airJumps=0}
+  toast((cheats[key]?'✅ ':'❎ ')+key.toUpperCase(),1);
+ }
+ cheatMenu();
+}
+function updateCheatAimbot(){
+ if(!cheats.aimbot||!cheatPermission())return;
+ let best=null,min=70;
+ if(gameMode==='multi'){
+  if(!netReady)return;
+  for(const r of remotePlayers.values()){
+   const d=Math.hypot(state.x-r.group.position.x,state.z-r.group.position.z);
+   if(d<min){min=d;best={x:r.group.position.x,y:r.group.position.y+1.4,z:r.group.position.z}}
+  }
+ }else for(const e of enemies){
+   if(!e.alive||e.state==='underground')continue;
+   const d=Math.hypot(state.x-e.group.position.x,state.z-e.group.position.z);
+   if(d<min){min=d;best={x:e.group.position.x,y:e.group.position.y+1.5,z:e.group.position.z}}
+ }
+ if(!best)return;
+ const dx=best.x-state.x,dy=best.y-state.y-1.43,dz=best.z-state.z;
+ state.yaw=-Math.atan2(dx,-dz);
+ state.pitch=clamp(Math.atan2(dy,Math.hypot(dx,dz)),-.43,.83);
+ player.rotation.y=state.yaw;
+}
+function applyCheatFrame(dt){
+ if(gameMode==='menu')return;
+ if(gameMode==='multi'&&!onlineHost){for(const k of Object.keys(cheats))cheats[k]=false;return}
+ if(cheats.stamina)state.st=100;
+ if(cheats.regen)state.hp=Math.min(100,state.hp+dt*9);
+ player.visible=!cheats.invis;
+ if(cheats.disco){
+  sun.color.setHSL((visualTime*.17)%1,.60,.73);
+ }else sun.color.set('#ffffff');
+ if(cheats.radar){
+  const e=gameMode==='multi'?[...remotePlayers.values()].map(x=>x.group.position).sort((a,b)=>a.distanceTo(player.position)-b.distanceTo(player.position))[0]:enemies.filter(x=>x.alive).map(x=>x.group.position).sort((a,b)=>a.distanceTo(player.position)-b.distanceTo(player.position))[0];
+  const rad=$('cheatRadar');
+  if(e){rad.textContent='📡 RADAR: nemico a '+Math.round(e.distanceTo(player.position))+' metri';rad.style.display='block'}
+  else rad.style.display='none';
+ }else $('cheatRadar').style.display='none';
+}
