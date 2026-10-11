@@ -6,12 +6,13 @@
 'use strict';
 const http=require('node:http'),crypto=require('node:crypto'),os=require('node:os');
 const fs=require('node:fs'),path=require('node:path'),net=require('node:net');
+const {ADMIN_COMMANDS,ALLOWED_CHEATS,publicCheats,cleanChat,processCommand}=require('./admin_console.js');
 const PORT=Number(process.env.PORT||3000), HOST=process.env.HOST||'0.0.0.0';
 const MAX=12, MAX_ROOMS=32, MAX_SOCKETS=48, MATCH_MS=8*60000;
 const rooms=new Map(),sockets=new Set();
-const RATE=[220,90,850,550,390,380,70,1100,190,140,1350,800,3000,240,650,300,1200,480,180,1700,310,1450,350,105];
-const POWER=[7,4,20,15,12,11,3,14,10,6,24,23,25,9,17,8,19,12,8,22,11,28,14,8];
-const KINDS=['shot','shot','boom','melee','melee','shot','shot','nova','shot','shot','boom','melee','nova','shot','boom','shot','nova','shot','shot','boom','shot','boom','shot','shot'];
+const RATE=[220,90,850,550,390,380,70,1100,190,140,1350,800,3000,240,650,300,1200,480,180,1700,310,1450,350,105,85];
+const POWER=[7,4,20,15,12,11,3,14,10,6,24,23,25,9,17,8,19,12,8,22,11,28,14,8,72];
+const KINDS=['shot','shot','boom','melee','melee','shot','shot','nova','shot','shot','boom','melee','nova','shot','boom','shot','nova','shot','shot','boom','shot','boom','shot','shot','shot'];
 function candyLocations(){
   const a=[];
   for(const [x,z] of [[-19,-34.5],[19,-34.5],[-19,-15.5],[19,-15.5],[-19,5],[19,5]])
@@ -72,7 +73,7 @@ function lanIPs(){
 }
 const urls=()=>lanIPs().map(x=>'http://'+x+':'+PORT);
 const publicPlayers=r=>[...r.players.values()].map(p=>({id:p.id,name:p.name,x:p.x,y:p.y,z:p.z,yaw:p.yaw,hp:p.hp,weapon:p.weapon,candy:p.candy,host:p.id===r.host}));
-const view=r=>({type:'state',code:r.code,hostId:r.host,stage:r.stage,players:publicPlayers(r),taken:[...r.taken],endAt:r.endAt,cheats:{freeze:!!r.cheats?.freeze},now:Date.now()});
+const view=r=>({type:'state',code:r.code,hostId:r.host,stage:r.stage,players:publicPlayers(r),taken:[...r.taken],endAt:r.endAt,cheats:publicCheats(r),adminSpeed:r.adminSpeed||1,now:Date.now()});
 function send(c,payload){
   if(!c||c.closed)return;
   try{
@@ -89,7 +90,7 @@ function sixDigits(){for(let i=0;i<1500;i++){const s=String(crypto.randomInt(100
 function join(c,code,name,create){
   if(c.room)return send(c,{type:'error',message:'Hai già una stanza.'});
   let r;
-  if(create){if(rooms.size>=MAX_ROOMS)return send(c,{type:'error',message:'Limite di stanze raggiunto.'});code=sixDigits();r={code,host:null,stage:'lobby',taken:new Set(),players:new Map(),endAt:0,cheats:{freeze:false}};rooms.set(code,r)}
+  if(create){if(rooms.size>=MAX_ROOMS)return send(c,{type:'error',message:'Limite di stanze raggiunto.'});code=sixDigits();r={code,host:null,stage:'lobby',taken:new Set(),players:new Map(),endAt:0,cheats:{freeze:false},adminSpeed:1,chatHistory:[]};rooms.set(code,r)}
   else {
     if(!/^\d{6}$/.test(String(code||'')))return send(c,{type:'error',message:'Il codice deve avere sei cifre.'});
     r=rooms.get(code);
@@ -98,7 +99,7 @@ function join(c,code,name,create){
     if(r.players.size>=MAX)return send(c,{type:'error',message:'Stanza piena.'});
   }
   const id=crypto.randomBytes(6).toString('hex');
-  const p={id,client:c,name:cleanName(name),x:0,y:0,z:27,yaw:0,pitch:0,hp:100,candy:0,weapon:0,lastFire:0,lastMove:0,immune:0};
+  const p={id,client:c,name:cleanName(name),x:0,y:0,z:27,yaw:0,pitch:0,hp:100,candy:0,weapon:0,opGun:false,lastFire:0,lastMove:0,immune:0,lastChat:0};
   r.players.set(id,p);r.host=r.host||id;c.room=r;c.id=id;
   send(c,{type:'joined',id,code:r.code,hostId:r.host,stage:r.stage,taken:[],maxPlayers:MAX});
   update(r);
@@ -107,13 +108,13 @@ function leave(c){
   const r=c.room;if(!r)return;
   r.players.delete(c.id);c.room=null;c.id=null;
   if(!r.players.size){rooms.delete(r.code);return}
-  if(!r.players.has(r.host)){r.host=r.players.keys().next().value;r.cheats.freeze=false;everyone(r,{type:'notice',message:'Nuovo creatore della stanza. Trucchi condivisi disattivati.'})}
+  if(!r.players.has(r.host)){r.host=r.players.keys().next().value;r.cheats={freeze:false};r.adminSpeed=1;everyone(r,{type:'notice',message:'Nuovo creatore della stanza. Trucchi condivisi disattivati.'})}
   update(r);
 }
 function close(c){if(c.closed)return;c.closed=true;leave(c);sockets.delete(c);try{c.socket.destroy()}catch(e){}}
 function start(c){
   const r=c.room;if(!r||r.host!==c.id||r.stage!=='lobby')return;
-  r.stage='game';r.endAt=Date.now()+MATCH_MS;r.taken.clear();r.cheats.freeze=false;
+  r.stage='game';r.endAt=Date.now()+MATCH_MS;r.taken.clear();r.cheats={freeze:false};r.adminSpeed=1;
   let i=0;for(const p of r.players.values()){p.x=(i%4)*2-3;p.z=27+Math.floor(i/4)*2;p.y=0;p.hp=100;p.candy=0;p.weapon=0;p.immune=Date.now()+3000;i++}
   everyone(r,{type:'matchStart',endAt:r.endAt,taken:[],players:publicPlayers(r)});update(r);
 }
@@ -133,12 +134,41 @@ function message(c,msg){
     return;
   }
   if(msg.type==='start'){start(c);return}
+  if(msg.type==='chat'){
+    const now=Date.now(),content=cleanChat(msg.text);
+    if(!content||now-(p.lastChat||0)<550)return;
+    p.lastChat=now;
+    // Slash commands are never sent as public chat from the network.
+    if(content.startsWith('/'))return send(c,{type:'chat',system:true,name:'SERVER',text:'Per i comandi usa / oppure il pulsante ESEGUI.'});
+    const packet={type:'chat',name:p.name,id:p.id,host:p.id===r.host,text:content};
+    r.chatHistory.push(packet);if(r.chatHistory.length>50)r.chatHistory.shift();
+    everyone(r,packet);
+    return;
+  }
+  if(msg.type==='adminCommand')return processCommand(c,String(msg.command||'').slice(0,220),{send,everyone,update,leave});
+  if(msg.type==='adminHelp')return send(c,{type:'adminHelp',commands:ADMIN_COMMANDS});
   if(r.stage!=='game')return;
   if(Date.now()>=r.endAt){finish(r);return}
   // The game host alone can apply global room cheats. Clients cannot cheat via WebSocket.
   if(msg.type==='hostCheat'){
     if(r.host!==c.id)return send(c,{type:'notice',message:'Solo il creatore della stanza può usare i trucchi.'});
     const action=String(msg.action||'');
+    if(ALLOWED_CHEATS.has(action)){
+      r.cheats[action]=!!msg.enabled;
+      if(action==='freeze')everyone(r,{type:'cheatState',freeze:r.cheats.freeze,by:p.name});
+      send(c,{type:'chat',system:true,name:'SERVER',text:'Trucco '+action+': '+(r.cheats[action]?'ON':'OFF')});
+      update(r);
+      return;
+    }
+    if(action==='collectAll'){
+      let n=0;
+      for(let i=0;i<CANDIES.length;i++)if(!r.taken.has(i)){r.taken.add(i);n++;everyone(r,{type:'pickup',id:i,by:p.id,name:p.name,candy:p.candy+n})}
+      p.candy+=n;everyone(r,{type:'chat',system:true,name:'ADMIN',text:'🍬 Raccogli tutte: '+n+' caramelle assegnate.'});update(r);return;
+    }
+    if(action==='fullHeal'){p.hp=100;update(r);return}
+    if(action==='teleportHome'){
+      p.x=0;p.y=0;p.z=27;p.lastMove=0;send(c,{type:'adminTeleport',id:p.id,x:0,y:0,z:27,reason:'home'});update(r);return;
+    }
     if(action==='freeze'){
       r.cheats.freeze=!!msg.enabled;
       everyone(r,{type:'cheatState',freeze:r.cheats.freeze,by:p.name});
@@ -174,39 +204,43 @@ function message(c,msg){
   }
   if(msg.type==='move'){
     const [x,y,z,yaw,pitch]=[msg.x,msg.y,msg.z,msg.yaw,msg.pitch].map(Number);
-    if(![x,y,z,yaw,pitch].every(Number.isFinite)||Math.abs(x)>120||Math.abs(z)>120||y<-.5||y>55)return;
+    if(![x,y,z,yaw,pitch].every(Number.isFinite)||Math.abs(x)>120||Math.abs(z)>120||y<-.5||y>(p.id===r.host&&r.cheats.fly?66:55))return;
     const now=Date.now(),delta=Math.max(.06,Math.min(6,(now-(p.lastMove||now-1000))/1000));
-    if(p.lastMove&&Math.hypot(x-p.x,z-p.z)>Math.max(10,delta*34))return;
+    if(p.lastMove&&Math.hypot(x-p.x,z-p.z)>Math.max(10,delta*34*(p.id===r.host?(r.adminSpeed||1):1)*(p.id===r.host&&r.cheats.superDash?1.4:1)))return;
     p.x=x;p.y=y;p.z=z;p.yaw=yaw;p.pitch=pitch;p.lastMove=now;
-    p.weapon=Math.max(0,Math.min(23,Math.round(Number(msg.weapon)||0)));
+    p.weapon=Math.max(0,Math.min(p.opGun&&p.id===r.host?24:23,Math.round(Number(msg.weapon)||0)));
     return;
   }
   if(msg.type==='pickup'){
     const id=Number(msg.id);if(!Number.isInteger(id)||id<0||id>=CANDIES.length||r.taken.has(id))return;
-    const [cx,cz]=CANDIES[id];if(Math.hypot(p.x-cx,p.z-cz)>3.2||Math.abs(p.y)>15)return;
+    const [cx,cz]=CANDIES[id];if(Math.hypot(p.x-cx,p.z-cz)>(p.id===r.host&&r.cheats.candyMagnet?9.5:3.2)||Math.abs(p.y)>15)return;
     r.taken.add(id);p.candy++;everyone(r,{type:'pickup',id,by:p.id,name:p.name,candy:p.candy});
     if(r.taken.size===CANDIES.length)finish(r);return;
   }
   if(msg.type==='fire'){
     const w=Number(msg.weapon),now=Date.now();
-    if(!Number.isInteger(w)||w<0||w>=24||now-p.lastFire<Math.max(65,RATE[w]*.87))return;
+    if(!Number.isInteger(w)||w<0||w>=25||(w===24&&!(p.id===r.host&&p.opGun))||now-p.lastFire<Math.max(p.id===r.host&&r.cheats.rapidFire?35:65,RATE[w]*(p.id===r.host&&r.cheats.rapidFire?.30:.87)))return;
     p.lastFire=now;
     const kind=KINDS[w],forward={x:-Math.sin(p.yaw)*Math.cos(p.pitch),y:Math.sin(p.pitch),z:-Math.cos(p.yaw)*Math.cos(p.pitch)};
     const range=kind==='nova'?9:kind==='melee'?4.4:[2,10,14,19,21].includes(w)?49:51;
     everyone(r,{type:'playerShot',id:p.id,weapon:w,x:p.x,y:p.y,z:p.z,yaw:p.yaw,pitch:p.pitch});
     let target=null,best=Infinity;
     for(const q of r.players.values()){
-      if(q.id===p.id||now<q.immune)continue;
+      if(q.id===p.id||now<q.immune||(q.id===r.host&&r.cheats.god))continue;
       const dx=q.x-p.x,dy=q.y-p.y,dz=q.z-p.z,dist=Math.hypot(dx,dy,dz);if(dist>range||dist<.01)continue;
       const dot=(dx*forward.x+dy*forward.y+dz*forward.z)/dist;
-      if(kind!=='nova'&&dot<(kind==='melee'?.25:.966))continue;
+      if(kind!=='nova'&&dot<(kind==='melee'?.25:(p.id===r.host&&r.cheats.bigShots?.93:.966)))continue;
       if(dist<best){target=q;best=dist}
     }
     if(!target)return;
     // RPG: tag nearby opponents around the first impact (cartoon blast).
-    const victims=w===21?[...r.players.values()].filter(q=>q.id!==p.id && now>=q.immune && Math.hypot(q.x-target.x,q.y-target.y,q.z-target.z)<7.5):[target];
+    const victims=w===21?[...r.players.values()].filter(q=>q.id!==p.id && now>=q.immune && !(q.id===r.host&&r.cheats.god)&&Math.hypot(q.x-target.x,q.y-target.y,q.z-target.z)<(r.cheats.hugeBlast&&p.id===r.host?13:7.5)):[target];
     for(const victim of victims){
-      victim.hp=Math.max(0,victim.hp-(w===21?Math.round(POWER[w]*.78):POWER[w]));
+      let damage=w===21?Math.round(POWER[w]*.78):POWER[w];
+      if(p.id===r.host&&r.cheats.instantKO)damage=1000;
+      else if(p.id===r.host&&r.cheats.megaDamage)damage*=3;
+      if(victim.id===r.host&&r.cheats.shield)damage=Math.max(1,Math.round(damage*.25));
+      victim.hp=Math.max(0,victim.hp-damage);
       everyone(r,{type:'tag',attacker:p.id,victim:victim.id,hp:victim.hp,weapon:w});
       if(victim.hp<=0){
         const stolen=victim.candy;p.candy+=stolen;victim.candy=0;victim.hp=100;
