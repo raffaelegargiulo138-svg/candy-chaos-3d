@@ -1256,7 +1256,7 @@ function updateParkour(dt){
  let len=Math.hypot(ix,iz);if(len>0){ix/=len;iz/=len;lastDir.set(ix,0,iz);moving=true}
  let sprint=!!(keyDown.ShiftLeft||keyDown.ShiftRight)&&state.st>0;
  if(sprint&&moving){state.st=Math.max(0,state.st-dt*9)}else state.st=Math.min(100,state.st+dt*(state.y>.1?9:18));
- let speed=(state.slideLeft>0?12.5:sprint?9.9:aiming?3.7:6.1)*(cheats.speed?1.9:1)*(gameMode==='multi'?adminSpeed:1);
+ let speed=(state.slideLeft>0?12.5:sprint?9.9:aiming?3.7:6.1)*Math.max(cheats.speed?1.9:1,adminSpeed);
  state.dashCD=Math.max(0,state.dashCD-dt);state.slideLeft=Math.max(0,state.slideLeft-dt);
  if(state.dashLeft>0){speed=cheats.superDash?46:23;state.dashLeft-=dt;ix=lastDir.x;iz=lastDir.z}
  const a=1-Math.exp(-dt*(state.y>.1?8:15));
@@ -1457,6 +1457,10 @@ function showMultiplayerMenu(){
  [{text:'➕ CREA STANZA',fn:()=>openRoom('create')},{text:'🔑 ENTRA CON CODICE',fn:()=>openRoom('join')},{text:'⬅ MENU',fn:initModeMenu,secondary:true}],'WIFI / RETE LOCALE');
  refreshLanLinks();
 }
+function sendNet(payload){
+ if(!network||network.readyState!==WebSocket.OPEN)return false;
+ try{network.send(JSON.stringify(payload));return true}catch(e){return false}
+}
 function openRoom(method){if(isStaticGameLink()){showMultiplayerMenu();return}let name=String($(method==='create'?'newName':'joinName')?.value||'Giocatore').trim().slice(0,20)||'Giocatore';let code=String($('joinCode')?.value||'').trim();if(method==='join'&&!/^\d{6}$/.test(code)){const x=$('serverStatus');if(x)x.textContent='⚠️ Inserisci un codice di esattamente 6 cifre.';return}playerName=name;
  if(location.protocol==='file:'){uiModal('⚠️ Server necessario',`<p>Apri una finestra del terminale dentro la cartella del gioco ed esegui <b>node server.js</b>, poi vai su <b>http://localhost:3000</b>. Per giocare offline sulla stessa rete Wi-Fi, lascia aperto il server sul PC host.</p>`,[{text:'⬅ TORNA',fn:showMultiplayerMenu}],'CONNESSIONE ONLINE');return}
  uiModal('🔌 Connessione alla stanza',`<p>Collegamento al server in corso…</p>`,[{text:'⬅ ANNULLA',fn:showMultiplayerMenu,secondary:true}],'ONLINE');if(network)try{network.close()}catch(e){};
@@ -1479,11 +1483,21 @@ function renderRemotePlayer(p){let r=remotePlayers.get(p.id);if(!r){const g=new 
 function updateRemotePlayers(dt){for(let r of remotePlayers.values()){r.group.position.lerp(r.target,1-Math.exp(-dt*12));r.group.rotation.y=THREE.MathUtils.damp(r.group.rotation.y,r.yaw,13,dt);}}
 function updateLobbyHUD(){if(gameMode!=='multi')return;$('roomCode').textContent=onlineRoom||'------';let seconds=Math.max(0,Math.ceil((roundEndAt-(Date.now()+serverClockOffset))/1000));$('roundTime').textContent=netReady?` · ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`:'';let players=[...lobbyPlayers].sort((a,b)=>b.candy-a.candy);$('lobbyPlayers').innerHTML=players.map((p,i)=>`<div style="color:${p.id===myPlayerId?'#ffe89d':'#e0e6f3'}">${i+1}. ${escapeHTML(p.name)} — 🍬 <b>${p.candy}</b> ${p.host?'👑':''}</div>`).join('')}
 let serverClockOffset=0,multiplayerRewardGranted=false;
-function handleNet(msg){if(msg.type==='error'){connectionError(msg.message||'Errore di connessione.');return}
+function handleNet(msg){
+ if(msg.type==='chat'){addChatLine(msg.name||'Giocatore',msg.text||'',!!msg.system,!!msg.host);return}
+ if(msg.type==='chatClear'){chatFeed.replaceChildren();chatHint('🧹 Chat pulita da '+(msg.by||'ADMIN'));return}
+ if(msg.type==='adminHelp'){chatHint('📜 15 comandi disponibili: premi / per consultarli tutti.');return}
+ if(msg.type==='opGun'){adminOpGun=!!msg.enabled;if(adminOpGun){chooseWeapon(24);chatHint('⚡ PISTOLA OP attivata!')}return}
+ if(msg.type==='adminTeleport'){if(msg.id===myPlayerId){
+    state.x=Number(msg.x)||0;state.y=Number(msg.y)||0;state.z=Number(msg.z)||27;
+    state.vx=0;state.vy=0;state.vz=0;player.position.set(state.x,state.y,state.z);
+    toast(msg.reason==='kill'?'💥 Sei stato mandato allo spawn!':'📍 Teletrasporto admin!',2);
+   }return}
+ if(msg.type==='error'){connectionError(msg.message||'Errore di connessione.');return}
  if(msg.type==='joined'){onlineRoom=msg.code;myPlayerId=msg.id;serverClockOffset=0;setMode('multi');showLobby();return}
- if(msg.type==='state'){if(!onlineRoom)return;lobbyPlayers=msg.players||[];serverClockOffset=(msg.now||Date.now())-Date.now();let local=lobbyPlayers.find(v=>v.id===myPlayerId);if(local){onlineHost=local.host;state.candy=local.candy;state.hp=local.hp;}
+ if(msg.type==='state'){if(!onlineRoom)return;lobbyPlayers=msg.players||[];serverClockOffset=(msg.now||Date.now())-Date.now();adminSpeed=Number(msg.adminSpeed)||1;let local=lobbyPlayers.find(v=>v.id===myPlayerId);if(local){onlineHost=local.host;state.candy=local.candy;state.hp=local.hp;}
  for(let p of lobbyPlayers)if(p.id!==myPlayerId)renderRemotePlayer(p);for(let [id,r] of [...remotePlayers])if(!lobbyPlayers.some(p=>p.id===id)){scene.remove(r.group);remotePlayers.delete(id)}
- if(msg.stage==='lobby'&&currentModal==='SALA D’ATTESA')showLobby();roomFreeze=!!msg.cheats?.freeze;if(msg.stage==='game')netReady=true;for(let id of msg.taken||[])removeCandyNetwork(id);roundEndAt=msg.endAt||0;return}
+ if(msg.stage==='lobby'&&currentModal==='SALA D’ATTESA')showLobby();roomFreeze=!!msg.cheats?.freeze;if(onlineHost&&msg.cheats)for(const k in cheats)if(k in msg.cheats)cheats[k]=!!msg.cheats[k];if(msg.stage==='game')netReady=true;for(let id of msg.taken||[])removeCandyNetwork(id);roundEndAt=msg.endAt||0;return}
  if(msg.type==='matchStart'){roomFreeze=false;multiplayerRewardGranted=false;setMode('multi');roundEndAt=msg.endAt;netReady=true;for(let id of msg.taken||[])removeCandyNetwork(id);state.candy=0;state.hp=100;state.x=0;state.y=0;state.z=27;state.invincible=0;resume();toast('🏁 GARA INIZIATA! 8 MINUTI: PRENDI PIÙ CARAMELLE!',5);return}
  if(msg.type==='cheatState'){roomFreeze=!!msg.freeze;if(currentModal==='TRUCCHI')cheatMenu();toast('🧊 FREEZE '+(roomFreeze?'ATTIVO':'DISATTIVATO'),2);return}
  if(msg.type==='quizPenalty'){state.candy=Number(msg.candy)||0;toast('❌ ERRORE: -1 CARAMELLA! Ora ne hai '+state.candy,2);return}
