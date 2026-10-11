@@ -32,8 +32,43 @@ body.ads #aimStatus{display:block}#aimRange{font-weight:450;letter-spacing:.02em
 @keyframes paintpop{0%{transform:translate(-50%,-50%) scale(.2);opacity:.8}50%{opacity:.55}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.8);opacity:0}}
 #fxTag{position:fixed;left:50%;top:calc(50% + 72px);transform:translateX(-50%);pointer-events:none;color:#fff9c5;font-size:12px;font-weight:900;text-shadow:0 0 9px #000;opacity:0;z-index:7;transition:opacity .13s}
 @media(prefers-reduced-motion:reduce){.paint-drop{animation-duration:.05s}#reticle,#reticle *{transition:none!important}}
+
+/* LAN chat, live scoreboard, slash-command palette and 25 cheat tiles */
+#gameChat{position:fixed;bottom:104px;left:14px;width:min(395px,36vw);z-index:8;pointer-events:none;display:none}
+#gameChat.visible{display:block}#gameChat.hasMessages{display:block}
+#chatFeed{padding:8px 10px;max-height:146px;min-height:28px;overflow-y:auto;border-radius:10px;background:linear-gradient(#0a1424c0,#0b1825df);font-size:12px;line-height:1.65;text-shadow:0 1px 2px black;scrollbar-width:thin;pointer-events:auto}
+.chatLine{overflow-wrap:anywhere;margin:2px 0;color:#e4f0ff}.chatLine b{color:#a7e9ff}.chatLine.system b{color:#ffe094}.chatLine.system span{color:#ffe8b4}
+#chatComposer{display:none;gap:5px;margin-top:6px;pointer-events:auto}#gameChat.typing{display:block}#gameChat.typing #chatComposer{display:flex}
+#chatInput{flex:1;min-width:0;border:1px solid #75d8ff83;border-radius:8px;background:#081729f2;color:white;padding:10px;font-size:13px;outline:none}
+#chatInput:focus{border-color:#ffe4a3}#chatSendButton{border-radius:8px;border:1px solid #ffe4a3;background:#42364d;color:#fff4db;font-weight:900;padding:8px;cursor:pointer}
+#chatOpenButton{position:fixed;bottom:80px;left:14px;z-index:7;border:1px solid #ffd3a57c;border-radius:8px;background:#0d233cd9;color:#faf1dd;padding:6px 10px;font-size:11px;cursor:pointer}
+#commandList{display:none;position:relative;z-index:12;max-height:45vh;overflow-y:auto;background:#0b182afa;border:1px solid #e3cd8d7d;box-shadow:0 8px 28px #0009;padding:7px;border-radius:9px;margin-bottom:5px;pointer-events:auto}
+.slashTitle{font-size:11px;color:#ffdda0;padding:8px;font-weight:900}
+.slashOption{display:flex;gap:12px;width:100%;justify-content:space-between;text-align:left;border:0;border-bottom:1px solid #ffffff1c;background:transparent;color:#e4edfa;cursor:pointer;padding:8px;font-size:12px}
+.slashOption:hover,.slashOption:focus{background:#5a73914a}.slashOption b{color:#ffdf8a;min-width:118px}.slashOption span{color:#b7cde0}
+#playerScoreboard{position:fixed;top:16%;left:50%;transform:translateX(-50%);width:min(680px,92vw);max-height:70vh;overflow:auto;z-index:16;display:none;background:#081627f2;border:1px solid #ffe4af88;border-radius:16px;padding:18px;box-shadow:0 20px 70px #000a;color:#f1f6ff}
+#playerScoreboard h2{color:#ffe2ab;font-size:19px;margin:0}#scoreboardCount{font-size:12px;color:#a8dce9;margin:4px 0 12px}
+.scoreRow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px;border-radius:7px;border-bottom:1px solid #ffffff24;font-size:13px}.scoreRow.me{background:#fff3a924;color:#fff0c2}
+#cheatTiles{max-height:52vh;overflow-y:auto;grid-template-columns:repeat(2,minmax(0,1fr))}
+.cheatTile{margin:0!important;min-height:110px;display:flex;flex-direction:column}.cheatTile b{font-size:12px}.cheatTile span{font-size:11px;color:#b3cce3}.cheatTile button{margin-top:auto;align-self:start;padding:6px 12px;font-size:11px}
+#cheatRadar{position:fixed;top:105px;left:50%;transform:translateX(-50%);z-index:6;pointer-events:none;display:none;padding:7px 12px;border-radius:12px;background:#112538ec;color:#ffeebc;font-size:11px;font-weight:800}
+@media(max-width:760px){#gameChat{width:min(310px,77vw);bottom:107px;left:7px}#chatOpenButton{left:7px}#cheatTiles{grid-template-columns:1fr}#commandList{max-height:37vh}}
+
 </style></head><body>
 <div id="game"></div><div id="grain"></div><div id="damage"></div>
+<div id="cheatRadar"></div>
+<div id="gameChat" aria-label="Chat Candy Chaos">
+ <div id="commandList" role="list" aria-label="Elenco 15 comandi amministratore"></div>
+ <div id="chatFeed" role="log" aria-live="polite" aria-label="Messaggi chat"></div>
+ <div id="chatComposer"><input id="chatInput" maxlength="180" type="text" autocomplete="off" spellcheck="false" placeholder="Messaggio oppure /comando" aria-label="Scrivi un messaggio"><button id="chatSendButton" type="button">INVIA</button></div>
+</div>
+<button id="chatOpenButton" type="button">💬 T · CHAT &nbsp; / · COMANDI</button>
+<div id="playerScoreboard" aria-label="Giocatori connessi">
+ <h2 id="scoreboardTitle">👥 GIOCATORI</h2>
+ <div id="scoreboardCount">0 connessi</div>
+ <div id="scoreboardRows"></div><p class="smalltext">Rilascia TAB per chiudere l'elenco.</p>
+</div>
+
 <div id="reticle" aria-label="Mirino centrale"><i class="rt rt-top"></i><i class="rt rt-right"></i><i class="rt rt-bottom"></i><i class="rt rt-left"></i><i class="rt-center"></i><i class="rt-circle"></i><i class="rt-hit hit-a"></i><i class="rt-hit hit-b"></i></div>
 <div id="aimStatus">🎯 MIRA PRECISA <span id="aimRange">· PROIETTILE CENTRATO</span></div>
 <div id="paintLayer" aria-hidden="true"></div>
@@ -43,7 +78,7 @@ body.ads #aimStatus{display:block}#aimRange{font-weight:450;letter-spacing:.02em
 <div id="mission" class="glass"><h2>🎯 MISSIONE APERTA</h2><p id="missionText">Esplora il quartiere, entra nelle classi, risolvi le operazioni dei libri per sbloccare nuovi poteri. Puoi scegliere 20 finali diversi!</p></div>
 <canvas id="minimap" width="340" height="340"></canvas>
 <div id="weapon" class="glass"><strong id="weaponTitle">🧸 Orsetti gommosi</strong><span id="weaponInfo">Q/rotella cambia · click destro mira · click sinistro usa</span></div>
-<div id="controls" class="glass"><kbd>WASD</kbd> muovi · <kbd>Mouse</kbd> visuale · <kbd>Shift</kbd> sprint / corsa sul muro · <kbd>Spazio</kbd> doppio salto · <kbd>Ctrl</kbd> scivolata · <kbd>V</kbd> scavalca · <kbd>F</kbd> rampino · <kbd>R</kbd> scatto · <kbd>E</kbd> interagisci · <kbd>B</kbd> armi · <kbd>X</kbd> TRUCCHI · <kbd>J</kbd> 20 finali · <kbd>M</kbd> mappa · <kbd>G</kbd> cambia mira · <kbd>P</kbd> qualità</div>
+<div id="controls" class="glass"><kbd>WASD</kbd> muovi · <kbd>Mouse</kbd> visuale · <kbd>Shift</kbd> sprint / corsa sul muro · <kbd>Spazio</kbd> doppio salto · <kbd>Ctrl</kbd> scivolata · <kbd>V</kbd> scavalca · <kbd>F</kbd> rampino · <kbd>R</kbd> scatto · <kbd>E</kbd> interagisci · <kbd>B</kbd> armi · <kbd>X</kbd> 25 TRUCCHI · <kbd>T</kbd> CHAT · <kbd>/</kbd> 15 COMANDI · <kbd>TAB</kbd> GIOCATORI · <kbd>J</kbd> 20 finali · <kbd>M</kbd> mappa · <kbd>G</kbd> cambia mira · <kbd>P</kbd> qualità</div>
 <div id="cross">✦</div><div id="context"></div><div id="toast"></div><div id="areaPopup"></div>
 <div id="modal"><div id="panel" class="glass"><div id="modalContent"><div class="eyebrow">AVVIO DEL GIOCO</div><h1>🍬 CANDY CHAOS 3D</h1><p>Caricamento della città, delle armi e dei personaggi in corso...</p><div class="feature">La schermata delle modalità apparirà automaticamente.</div></div><div class="actions" id="modalActions"><button class="btn secondary" disabled>⌛ CARICAMENTO...</button></div></div></div>
 <script>
@@ -1160,6 +1195,10 @@ function startSlide(){if(paused||state.slideLeft>0||state.st<13)return;state.sli
 let grappleTarget=null,grappleT=0;function startGrapple(){if(paused||state.st<12)return;let nearest=null,dist=27;for(let n of nodes){let d=Math.hypot(state.x-n.x,state.y+1-n.y,state.z-n.z);if(d<dist){nearest=n;dist=d}}if(!nearest){toast('🪝 Avvicinati ai nodi luminosi sulla Torre!');return}grappleTarget=nearest;grappleT=.42;state.st-=12;state.grapples++;puff(state.x,state.y+1.6,state.z,0x7ff5fb,11,4);toast('🪝 RAMPINO MAGNETICO!',1)}
 function tryVault(){if(paused||state.st<9)return;const f={x:-Math.sin(state.yaw),z:-Math.cos(state.yaw)};for(let a of solids){const aheadX=state.x+f.x*.85,aheadZ=state.z+f.z*.85;if(overlapRect(aheadX,aheadZ,a,.38)&&a.top<=state.y+2.2&&a.top>state.y+.3){state.y=a.top+.2;state.vy=2.1;state.st-=9;state.airJumps=1;toast('🤸 SCAVALCAMENTO!',.8);return}}for(let p of platforms){if(Math.hypot(p.x-state.x,p.z-state.z)<5.5&&p.y>state.y&&p.y<state.y+2.4){state.y=p.y+.2;state.vy=2;state.st-=9;toast('🤸 SALITA VELOCE!',.8);return}}toast('🤸 Cerca ostacoli più bassi da scavalcare',1)}
 window.addEventListener('keydown',e=>{
+ if(e.target===chatInput)return;
+ if(e.target&&(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)||e.target.isContentEditable))return;
+ if(e.code==='Tab'&&['single','creative','multi'].includes(gameMode)){e.preventDefault();showPlayerScoreboard(true);return}
+ if((e.code==='KeyT'||e.code==='Slash')&&!paused&&['single','creative','multi'].includes(gameMode)){e.preventDefault();openChat(e.code==='Slash'?'/':'');return}
  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keyDown[e.code]=true;
  if(e.repeat)return;
  if(e.code==='KeyX' && ['single','creative','multi'].includes(gameMode)){
@@ -1183,8 +1222,8 @@ window.addEventListener('keydown',e=>{
  else if(e.code==='Escape')showNetworkPause();
  else if(e.code.startsWith('Digit')){const n=Number(e.code.slice(5));if(n>0)chooseWeapon(n===0?0:n-1)}
 });
-window.addEventListener('keyup',e=>{keyDown[e.code]=false});
-window.addEventListener('blur',()=>{shooting=false;setAim(false);for(let k in keyDown)keyDown[k]=false});
+window.addEventListener('keyup',e=>{keyDown[e.code]=false;if(e.code==='Tab'){e.preventDefault();showPlayerScoreboard(false)}});
+window.addEventListener('blur',()=>{showPlayerScoreboard(false);shooting=false;setAim(false);for(let k in keyDown)keyDown[k]=false});
 renderer.domElement.addEventListener('mousedown',e=>{if(paused)return;if(e.button===0){shooting=true;renderer.domElement.requestPointerLock?.()}if(e.button===2){setAim(true);renderer.domElement.requestPointerLock?.()}});renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('mouseup',e=>{if(e.button===0)shooting=false;if(e.button===2)setAim(false)});function setAim(v){aiming=v;$('reticle').classList.toggle('aiming',v);document.body.classList.toggle('ads',v);for(let h of heroFace)h.visible=!v}
 window.addEventListener('wheel',e=>{if(!paused){e.preventDefault();switchWeapon()}},{passive:false});
@@ -1356,7 +1395,7 @@ let hudTick=0;function updateHUD(dt){hudTick-=dt;if(hudTick>0)return;hudTick=.12
  else if(state.candy>=TOTAL_CANDY)$('missionText').textContent='Hai raccolto tutte le caramelle! Premi J e scopri il finale 1. Puoi puntare anche al finale 20.';
  else if(state.books.length<3)$('missionText').textContent='Entra nelle classi e risolvi le operazioni matematiche nei libri. ' + state.books.length+'/12 libri completati. Premi J per i finali.';
  else $('missionText').textContent='Esplora i nuovi quartieri, raggiungi i tetti, usa il rampino e affronta preside volante e vicepreside-talpa. ' + state.candy+'/'+TOTAL_CANDY+' caramelle raccolte.';
- if(gameMode==='multi')updateLobbyHUD();drawMinimap()}
+ if(gameMode==='multi')updateLobbyHUD();if(scoreboardOpened)refreshTabScoreboard();drawMinimap()}
 const clock=new THREE.Clock();
 function frame(){requestAnimationFrame(frame);let dt=Math.min(.045,clock.getDelta());visualTime+=dt;
  updateArchitectureRoofs(dt);
@@ -1377,8 +1416,8 @@ for(let i=0;i<friends.length;i++){friends[i].saved=state.friendsHelped.includes(
 const escapeHTML=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function fullCandyReset(){for(const c of [...pickups]){scene.remove(c.mesh)}pickups.length=0;for(let i=0;i<candySpots.length;i++)createCandy(...candySpots[i],i);state.collected=[];state.candy=0;}
 function resetModePlayer(){state.x=0;state.z=27;state.y=0;state.vx=0;state.vz=0;state.vy=0;state.hp=100;state.st=100;state.invincible=0;state.books=[];state.weapon=0;state.shotCD=0;adminOpGun=false;state.checkpoint={x:0,z:27};player.position.set(0,0,27);applyCharacterSkin();chooseWeapon(0)}
-function setMode(mode){gameMode=mode;for(const k in cheats)cheats[k]=false;adminSpeed=1;adminOpGun=false;cheats.fly=false;cheats.aimbot=false;cheats.freeze=false;roomFreeze=false;$('modeBanner').textContent=mode==='creative'?'✨ CREATIVA · INVINCIBILE · 24 ARMI':mode==='single'?'🎮 GIOCATORE SINGOLO · AVVENTURA':'📡 MULTIGIOCATORE LAN · CACCIA ALLE CARAMELLE';$('lobbyHud').style.display=mode==='multi'?'block':'none';for(const e of enemies)e.group.visible=mode!=='multi'&&e.alive;if(mode==='creative'){fullCandyReset();resetModePlayer();state.hp=100;toast('✨ 24 ARMI SBLOCCATE · ENERGIA INFINITA',3)}if(mode==='multi'){fullCandyReset();resetModePlayer()} }
-function initModeMenu(){gameMode='menu';paused=true;playing=false;uiModal('🍬 CANDY CHAOS 3D',`<div class="menuBanner">SCHERMATA PRINCIPALE</div><p>24 armi con modelli 3D, comprese 💩 Spara Cacca, 🚀 RPG, 🎮 Lancia Joy-Con Switch e 🔫 AK-47 Cartoon! Mondo più vasto, bar e casinò arcade con stanze accessibili, 10 nuovi nemici, più caramelle, torri, multiplayer e skin.</p><div class="feature">🍬 Le caramelle raccolte e le vittorie fanno guadagnare crediti per le skin (100–300 🍬). Totale disponibile: <b style="font-size:22px;color:#ffe08b">${cosmeticState.candies}</b></div><div id="modeSelection"><button class="modeCard" id="playCard"><span class="bigicon">▶</span><b>GIOCA</b><small>Apri la schermata con tutte le modalità disponibili.</small></button><button class="modeCard" id="shopCard"><span class="bigicon">🛍️</span><b>SKIN E SHOP</b><small>Compra ed equipaggia skin per personaggio e armi usando le caramelle.</small></button><button class="modeCard" id="multiCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Gioca con amici anche senza Internet, sullo stesso Wi-Fi o hotspot. Stanze con codice a 6 cifre.</small></button></div>`,[], 'MENU PRINCIPALE');$('playCard').onclick=showPlayModes;$('shopCard').onclick=showSkinShop;$('multiCard').onclick=showMultiplayerMenu;}
+function setMode(mode){gameMode=mode;chatFeed.replaceChildren();closeChat();showPlayerScoreboard(false);for(const k in cheats)cheats[k]=false;adminSpeed=1;adminOpGun=false;cheats.fly=false;cheats.aimbot=false;cheats.freeze=false;roomFreeze=false;$('modeBanner').textContent=mode==='creative'?'✨ CREATIVA · INVINCIBILE · 24 ARMI':mode==='single'?'🎮 GIOCATORE SINGOLO · AVVENTURA':'📡 MULTIGIOCATORE LAN · CACCIA ALLE CARAMELLE';$('lobbyHud').style.display=mode==='multi'?'block':'none';for(const e of enemies)e.group.visible=mode!=='multi'&&e.alive;if(mode==='creative'){fullCandyReset();resetModePlayer();state.hp=100;toast('✨ 24 ARMI SBLOCCATE · ENERGIA INFINITA',3)}if(mode==='multi'){fullCandyReset();resetModePlayer()} }
+function initModeMenu(){gameMode='menu';$('gameChat').classList.remove('visible','hasMessages');$('playerScoreboard').style.display='none';paused=true;playing=false;uiModal('🍬 CANDY CHAOS 3D',`<div class="menuBanner">SCHERMATA PRINCIPALE</div><p>24 armi con modelli 3D, comprese 💩 Spara Cacca, 🚀 RPG, 🎮 Lancia Joy-Con Switch e 🔫 AK-47 Cartoon! Mondo più vasto, bar e casinò arcade con stanze accessibili, 10 nuovi nemici, più caramelle, torri, multiplayer e skin.</p><div class="feature">🍬 Le caramelle raccolte e le vittorie fanno guadagnare crediti per le skin (100–300 🍬). Totale disponibile: <b style="font-size:22px;color:#ffe08b">${cosmeticState.candies}</b></div><div id="modeSelection"><button class="modeCard" id="playCard"><span class="bigicon">▶</span><b>GIOCA</b><small>Apri la schermata con tutte le modalità disponibili.</small></button><button class="modeCard" id="shopCard"><span class="bigicon">🛍️</span><b>SKIN E SHOP</b><small>Compra ed equipaggia skin per personaggio e armi usando le caramelle.</small></button><button class="modeCard" id="multiCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Gioca con amici anche senza Internet, sullo stesso Wi-Fi o hotspot. Stanze con codice a 6 cifre.</small></button></div>`,[], 'MENU PRINCIPALE');$('playCard').onclick=showPlayModes;$('shopCard').onclick=showSkinShop;$('multiCard').onclick=showMultiplayerMenu;}
 function showPlayModes(){uiModal('🎮 MODALITÀ DI GIOCO',`<div class="menuBanner">SCEGLI COME GIOCARE</div><div id="modeSelection"><button class="modeCard" id="creativeCard"><span class="bigicon">✨</span><b>CREATIVA</b><small>Tutte le armi subito disponibili. Non puoi perdere energia. Esplora e fai parkour. Premi X per il menu trucchi.</small></button><button class="modeCard" id="soloCard"><span class="bigicon">🎮</span><b>GIOCATORE SINGOLO</b><small>Avventura completa, libri con operazioni, boss e 20 finali.</small></button><button class="modeCard" id="partyCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Crea una stanza locale, invita amici e gioca anche senza Internet.</small></button></div>`,[{text:'⬅ TORNA',fn:initModeMenu,secondary:true}],'TUTTE LE MODALITÀ');$('creativeCard').onclick=()=>{setMode('creative');resume();toast('🌈 MODALITÀ CREATIVA!',2.5)};$('soloCard').onclick=()=>{setMode('single'); try{let saved=JSON.parse(localStorage.getItem('candy-chaos-ultimate-v2')||'null');if(saved&&Array.isArray(saved.books)){for(let k of Object.keys(saved))if(k in state)state[k]=saved[k];for(let c of [...pickups])if(state.collected.includes(c.id)){scene.remove(c.mesh);pickups.splice(pickups.indexOf(c),1)}}}catch(e){} chooseWeapon(state.weapon); start()}; $('partyCard').onclick=showMultiplayerMenu;}
 function backToModes(){if(network){try{sendNet({type:'leave'});network.close()}catch(e){}network=null;}onlineRoom=null;netReady=false;myPlayerId=null;onlineHost=false;for(const r of remotePlayers.values())scene.remove(r.group);remotePlayers.clear();$('lobbyHud').style.display='none';fullCandyReset();resetModePlayer();initModeMenu()}
 let localLanLinks=[];
@@ -1589,6 +1628,160 @@ function applyCheatFrame(dt){
   if(e){rad.textContent='📡 RADAR: nemico a '+Math.round(e.distanceTo(player.position))+' metri';rad.style.display='block'}
   else rad.style.display='none';
  }else $('cheatRadar').style.display='none';
+}
+
+// In-game chat, slash command palette, and live TAB player leaderboard.
+const ADMIN_COMMAND_LIST=[
+ ['/help','Elenco dei 15 comandi'],
+ ['/pistola op','Ottieni la Pistola OP (arma fortissima)'],
+ ['/kill nome|all','Manda un giocatore allo spawn'],
+ ['/freeze','Congela gli avversari'],
+ ['/unfreeze','Scongela gli avversari'],
+ ['/kick nome','Espelli un giocatore'],
+ ['/heal nome|me|all','Ripristina la salute'],
+ ['/god on|off','Invincibilità'],
+ ['/speed 1-4','Cambia velocità'],
+ ['/fly on|off','Vola'],
+ ['/tp nome','Vai da un giocatore'],
+ ['/bring nome','Porta un giocatore da te'],
+ ['/give nome numero','Regala caramelle (0–100)'],
+ ['/clear','Cancella la chat'],
+ ['/say messaggio','Annuncio per tutti']
+];
+let chatOpened=false,scoreboardOpened=false,chatCount=0,lastLocalChat=0;
+const chatInput=$('chatInput'),chatPanel=$('gameChat'),chatFeed=$('chatFeed'),chatCommands=$('commandList'),scoreboard=$('playerScoreboard');
+window.__candyAdminCommands=ADMIN_COMMAND_LIST;
+window.__candyChatState=()=>({open:chatOpened,lines:chatFeed.children.length,scoreboard:scoreboardOpened,adminOpGun,admin:gameMode!=='multi'||onlineHost});
+function addChatLine(name,message,system=false,admin=false){
+ const line=document.createElement('div');line.className='chatLine'+(system?' system':'');
+ const who=document.createElement('b');who.textContent=(admin?'👑 ':'')+String(name||'SERVER')+': ';
+ const txt=document.createElement('span');txt.textContent=String(message||'').slice(0,240);
+ line.append(who,txt);chatFeed.appendChild(line);
+ while(chatFeed.children.length>60)chatFeed.firstElementChild.remove();
+ chatFeed.scrollTop=chatFeed.scrollHeight;
+ chatPanel.classList.add('hasMessages');chatCount++;
+}
+function chatHint(message){addChatLine('SISTEMA',message,true)}
+function updateSlashHelp(){
+ if(!chatOpened)return;
+ const text=chatInput.value.trim().toLowerCase();
+ const slash=text.startsWith('/');
+ chatCommands.style.display=slash?'block':'none';
+ if(!slash)return;
+ const permitted=gameMode!=='multi'||onlineHost;
+ const matches=ADMIN_COMMAND_LIST.filter(([command])=>!text||text==='/'||command.toLowerCase().startsWith(text)||text.startsWith(command.split(' ')[0]));
+ chatCommands.innerHTML='';
+ const headline=document.createElement('div');headline.className='slashTitle';
+ headline.textContent='📜 15 COMANDI ADMIN'+(permitted?'':' · SOLO PER IL CREATORE DELLA STANZA');
+ chatCommands.appendChild(headline);
+ for(const [command,description] of (matches.length?matches:ADMIN_COMMAND_LIST)){
+  const row=document.createElement('button');row.type='button';row.className='slashOption';
+  const cmd=document.createElement('b');cmd.textContent=command;
+  const desc=document.createElement('span');desc.textContent=description;
+  row.append(cmd,desc);
+  row.addEventListener('mousedown',e=>e.preventDefault());
+  row.addEventListener('click',()=>{
+    const base=command.replace(/\s+(nome\|all|nome\|me\|all|nome|on\|off|1-4|numero|messaggio)$/,' ');
+    chatInput.value=base;chatInput.focus();updateSlashHelp();
+  });
+  chatCommands.appendChild(row);
+ }
+}
+function openChat(initial=''){
+ if(!['single','creative','multi'].includes(gameMode)||!playing||currentModal!=='game')return;
+ chatOpened=true;shooting=false;
+ for(const k of Object.keys(keyDown))keyDown[k]=false;
+ document.exitPointerLock?.();
+ chatPanel.classList.add('typing');chatInput.value=initial;
+ chatInput.focus();updateSlashHelp();
+}
+function closeChat(){
+ chatOpened=false;chatPanel.classList.remove('typing');
+ chatCommands.style.display='none';chatInput.value='';
+ chatInput.blur();for(const k of Object.keys(keyDown))keyDown[k]=false;
+ if(!paused)renderer.domElement.requestPointerLock?.();
+}
+function chatSend(){
+ const text=chatInput.value.trim().slice(0,180);
+ if(!text){closeChat();return}
+ if(text.startsWith('/')){
+  if(gameMode==='multi'){
+   if(!onlineHost){chatHint('⛔ I comandi / sono riservati all’amministratore.');closeChat();return}
+   if(!network||network.readyState!==WebSocket.OPEN){chatHint('Connettiti alla stanza LAN prima.');closeChat();return}
+   sendNet({type:'adminCommand',command:text});
+  }else runLocalAdminCommand(text);
+ }else if(gameMode==='multi'){
+  if(network&&network.readyState===WebSocket.OPEN)sendNet({type:'chat',text});
+  else chatHint('📶 Apri una stanza multiplayer sul server LAN per parlare con altri giocatori.');
+ }else addChatLine('TU',text);
+ closeChat();
+}
+chatInput.addEventListener('keydown',e=>{
+ e.stopPropagation();
+ if(e.key==='Enter'){e.preventDefault();chatSend()}
+ else if(e.key==='Escape'){e.preventDefault();closeChat()}
+});
+chatInput.addEventListener('input',updateSlashHelp);
+$('chatSendButton').addEventListener('click',chatSend);
+$('chatOpenButton').addEventListener('click',()=>openChat(''));
+function localAdminBool(key,arg){
+ if(!['on','off'].includes(arg)){chatHint('Uso: /'+key+' on oppure /'+key+' off');return}
+ cheats[key]=arg==='on';chatHint('✅ '+key.toUpperCase()+' '+arg.toUpperCase());
+}
+function runLocalAdminCommand(source){
+ const full=String(source||'').trim(),part=/^\/([a-zA-Z]+)(?:\s+(.*))?$/.exec(full);
+ if(!part){chatHint('Scrivi / per vedere tutti i comandi.');return}
+ const cmd=part[1].toLowerCase(),arg=(part[2]||'').trim(),pieces=arg.split(/\s+/);
+ switch(cmd){
+ case 'help':
+   chatHint('📜 Premi / per vedere tutti i 15 comandi.');break;
+ case 'pistola':
+   if(arg.toLowerCase()!=='op'){chatHint('Uso: /pistola op');break}
+   adminOpGun=true;chooseWeapon(24);chatHint('⚡ PISTOLA OP SBLOCCATA!');break;
+ case 'kill':
+   if(arg.toLowerCase()!=='all'){chatHint('In modalità locale usa /kill all; i nomi funzionano in multiplayer.');break}
+   localKillAll();chatHint('💥 Tutti i nemici messi KO.');break;
+ case 'freeze':cheats.freeze=true;chatHint('🧊 Nemici congelati.');break;
+ case 'unfreeze':cheats.freeze=false;chatHint('🔥 Nemici scongelati.');break;
+ case 'heal':state.hp=100;chatHint('❤️ Salute ripristinata.');break;
+ case 'god':localAdminBool('god',arg.toLowerCase());break;
+ case 'fly':localAdminBool('fly',arg.toLowerCase());break;
+ case 'speed':{
+   const n=Number(arg);if(!Number.isFinite(n)||n<1||n>4){chatHint('Uso: /speed 1-4');break}
+   adminSpeed=n;cheats.speed=n>1;chatHint('⚡ Velocità '+n+'x');break;
+ }
+ case 'tp':case 'bring':case 'kick':chatHint('Questo comando serve a gestire i giocatori connessi in multiplayer LAN.');break;
+ case 'give':{
+   const n=Number(pieces[pieces.length-1]);
+   if(!Number.isInteger(n)||n<0||n>100){chatHint('Uso: /give me 20');break}
+   state.candy+=n;chatHint('🍬 +'+n+' caramelle.');break;
+ }
+ case 'clear':chatFeed.replaceChildren();chatHint('Chat ripulita.');break;
+ case 'say':if(arg) addChatLine('📢 ADMIN',arg,true,true);else chatHint('Uso: /say messaggio');break;
+ default:chatHint('Comando sconosciuto. Scrivi /help o premi /.');
+ }
+}
+function refreshTabScoreboard(){
+ const data=gameMode==='multi'?lobbyPlayers.map(p=>({
+  name:p.name,candy:p.candy,hp:p.hp,host:!!p.host,isMe:p.id===myPlayerId
+ })):[{name:'Giocatore locale',candy:state.candy,hp:state.hp,host:true,isMe:true}];
+ data.sort((a,b)=>b.candy-a.candy);
+ const title=$('scoreboardTitle'),count=$('scoreboardCount'),rows=$('scoreboardRows');
+ title.textContent='👥 GIOCATORI '+(gameMode==='multi'?'ONLINE LAN':'LOCALI');
+ count.textContent=data.length+' / '+(gameMode==='multi'?12:1)+' connessi';
+ rows.replaceChildren();
+ data.forEach((p,i)=>{
+  const row=document.createElement('div');row.className='scoreRow'+(p.isMe?' me':'');
+  const name=document.createElement('span');name.textContent=(i+1)+'. '+(p.host?'👑 ':'')+p.name+(p.isMe?' (tu)':'');
+  const stats=document.createElement('span');stats.textContent='🍬 '+p.candy+' · ❤️ '+p.hp;
+  row.append(name,stats);rows.appendChild(row);
+ });
+}
+function showPlayerScoreboard(visible){
+ if(!['single','creative','multi'].includes(gameMode))return;
+ scoreboardOpened=!!visible;
+ if(visible)refreshTabScoreboard();
+ scoreboard.style.display=visible?'block':'none';
 }
 
 function showNetworkPause(){if(gameMode==='multi'){uiModal('⏸ Pausa online',`<p>La gara continua anche mentre questo menu è aperto. Puoi tornare alla partita oppure lasciare la stanza.</p><div class="feature">Stanza <b>${onlineRoom}</b> · Nella gara online le caramelle sono condivise e puoi recuperare quelle di un altro giocatore mettendolo fuori gioco.</div>`,[{text:'▶ RIPRENDI',fn:resume},{text:'👥 CLASSIFICA E CODICE',fn:()=>{showLobby()}},{text:'🏠 ESCI DALLA STANZA',fn:backToModes,secondary:true}],'PAUSA ONLINE');return}showPause()}
