@@ -70,7 +70,9 @@ jobs:
                 const label=await page.locator('#weaponTitle').textContent();
                 assert.ok(label.includes(weapon.name),'Weapon not equipped: '+weapon.name);
                 const before=await page.evaluate(()=>window.__candyShotCount||0);
+                if(i===25)console.log('QA BEFORE FIRE',JSON.stringify(await page.evaluate(()=>window.__candyQA())));
                 await page.evaluate(()=>document.querySelector('#game canvas').dispatchEvent(new MouseEvent('mousedown',{button:0,bubbles:true})));
+                if(i===25){await page.waitForTimeout(1200);console.log('QA AFTER FIRE',JSON.stringify(await page.evaluate(()=>window.__candyQA())));}
                 await page.waitForFunction(x=>window.__candyLastFiredWeapon===x.idx&&(window.__candyShotCount||0)>x.before,{idx:i,before},{timeout:12000});
                 await page.evaluate(()=>window.dispatchEvent(new MouseEvent('mouseup',{button:0,bubbles:true})));
                 passed++;
