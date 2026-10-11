@@ -1,4 +1,4 @@
-name: Windows safe source-only LAN chat + 25 cheats
+name: Windows safe source-only LAN 75 weapons
 on:
   push:
     branches: [main]
@@ -113,7 +113,7 @@ jobs:
             const guest=await pb;assert.equal(guest.code,room.code);
             pa=next(a,'matchStart');pb=next(b,'matchStart');
             a.send(JSON.stringify({type:'start'}));await Promise.all([pa,pb]);
-            for(const w of [20,21,22,23]){
+            for(const w of [20,21,22,23,25,35,45,55,74]){
               pa=next(a,'playerShot');
               a.send(JSON.stringify({type:'fire',weapon:w}));
               const hit=await pa;
@@ -134,37 +134,37 @@ jobs:
           set -euo pipefail
           PACK='dist/Candy_Chaos_3D_WINDOWS_SICURO'
           mkdir -p "$PACK"
-          cp index.html server.js admin_console.js LEGGIMI_WINDOWS_SICURO.txt LEGGIMI_CHAT_ADMIN.txt LICENZA_THREE.txt NOVITA_24_ARMI.txt "$PACK/"
+          cp index.html server.js admin_console.js bonus_50_weapons.json LEGGIMI_WINDOWS_SICURO.txt LEGGIMI_CHAT_ADMIN.txt LICENZA_THREE.txt NOVITA_24_ARMI.txt NOVITA_50_ARMI.txt "$PACK/"
           if find "$PACK" -type f | grep -Ei '\.(exe|msi|dll|bat|cmd|ps1|vbs|scr|jar)$'; then
             echo 'ERROR: Unsafe executable or script present in Windows-safe distribution'
             exit 1
           fi
-          (cd "$PACK"; sha256sum index.html server.js admin_console.js LEGGIMI_WINDOWS_SICURO.txt LEGGIMI_CHAT_ADMIN.txt LICENZA_THREE.txt NOVITA_24_ARMI.txt > SHA256_FILE.txt)
-          (cd dist; zip -q -r -9 Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip Candy_Chaos_3D_WINDOWS_SICURO)
-          (cd dist; sha256sum Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip > Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip.sha256)
-          unzip -l dist/Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip
-          cat dist/Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip.sha256
+          (cd "$PACK"; sha256sum index.html server.js admin_console.js bonus_50_weapons.json LEGGIMI_WINDOWS_SICURO.txt LEGGIMI_CHAT_ADMIN.txt LICENZA_THREE.txt NOVITA_24_ARMI.txt NOVITA_50_ARMI.txt > SHA256_FILE.txt)
+          (cd dist; zip -q -r -9 Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip Candy_Chaos_3D_WINDOWS_SICURO)
+          (cd dist; sha256sum Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip > Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip.sha256)
+          unzip -l dist/Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip
+          cat dist/Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip.sha256
       - name: Publish verifiable Windows-safe release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG='windows-safe-v3'
-          ZIP='dist/Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip'
-          SUM='dist/Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip.sha256'
+          TAG='windows-safe-v4'
+          ZIP='dist/Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip'
+          SUM='dist/Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip.sha256'
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ZIP" "$SUM" --clobber
           else
-            gh release create "$TAG" "$ZIP" "$SUM" --title 'Candy Chaos 3D - CHAT ADMIN 25 TRUCCHI Windows senza EXE' --notes 'Nuovo pacchetto LAN Windows con 25 armi incluso /pistola op, chat T, 15 comandi amministratore, TAB giocatori e 25 trucchi sul tasto X. 24 armi standard (Spara Cacca, RPG, Lancia Joy-Con, AK-47 Cartoon) piu pistola OP segreta. Contiene SOLO file testuali HTML/JS e licenza, senza eseguibili, BAT/CMD o installatori. Da PC host, installare Node.js LTS soltanto dal sito ufficiale nodejs.org, quindi eseguire node server.js nel Prompt dei comandi. Server limitato alla rete privata; HTTP su Wi-Fi non e cifrato. Il download non e firmato/certificato da Microsoft: rispettare eventuali avvisi di Defender/SmartScreen. Hash SHA256 del pacchetto allegato.'
+            gh release create "$TAG" "$ZIP" "$SUM" --title 'Candy Chaos 3D - 75 ARMI + CHAT ADMIN - Windows senza EXE' --notes 'Pacchetto LAN Windows con 75 armi: 50 nuove armi fantasy con modelli 3D, 24 armi originali e pistola OP solo admin. Chat T, 15 comandi amministratore, TAB giocatori e 25 trucchi sul tasto X. Contiene SOLO file testuali HTML/JS e licenza, senza eseguibili, BAT/CMD o installatori. Da PC host, installare Node.js LTS soltanto dal sito ufficiale nodejs.org, quindi eseguire node server.js nel Prompt dei comandi. Server limitato alla rete privata; HTTP su Wi-Fi non e cifrato. Il download non e firmato/certificato da Microsoft: rispettare eventuali avvisi di Defender/SmartScreen. Hash SHA256 del pacchetto allegato.'
           fi
-          echo 'DOWNLOAD: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/windows-safe-v3/Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip'
-          echo 'CHECKSUM: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/windows-safe-v3/Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip.sha256'
+          echo 'DOWNLOAD: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/windows-safe-v4/Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip'
+          echo 'CHECKSUM: https://github.com/raffaelegargiulo138-svg/candy-chaos-3d/releases/download/windows-safe-v4/Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip.sha256'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Candy-Chaos-Windows-Source-Only
           path: |
-            dist/Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip
-            dist/Candy_Chaos_3D_CHAT_ADMIN_WINDOWS_SICURO.zip.sha256
+            dist/Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip
+            dist/Candy_Chaos_3D_75_ARMI_WINDOWS_SICURO.zip.sha256
           if-no-files-found: warn
