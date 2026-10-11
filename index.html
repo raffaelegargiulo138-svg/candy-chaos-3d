@@ -563,6 +563,7 @@ const backpack=box(player,0,1.2,.37,.61,.79,.24,mat('#ffc863')); playerSkinParts
 const handItem=new THREE.Group();handItem.position.set(.65,1.12,-.4);player.add(handItem);
 const heldDecor=new THREE.Group();handItem.add(heldDecor);
 let gameMode='menu',aiming=false,remotePlayers=new Map(),onlineRoom=null,myPlayerId=null,network=null,onlineHost=false,netReady=false,netTick=0,roundEndAt=0,networkTimeout=null,playerName='Giocatore',lobbyPlayers=[];
+let adminOpGun=false;
 const state={x:0,z:27,y:0,vy:0,vx:0,vz:0,yaw:0,pitch:.18,hp:100,st:100,candy:0,books:[],collected:[],weapon:0,airJumps:0,shotCD:0,dashCD:0,dashLeft:0,slideLeft:0,wallLeft:0,grapples:0,jumps:0,slides:0,dashes:0,attacks:0,hits:0,enemyDefeats:{},quests:0,friendsHelped:[],explored:[],finals:[],time:0,stunned:0,invincible:0,checkpoint:{x:0,z:27},bookWrong:0,secret:false,bossDefeated:false,viceDefeated:false,bullyDefeated:false,combo:0,roof:false};
 const CHARACTER_SKINS=[
  {id:'classic',name:'Classico',price:0,body:'#466b93',legs:'#293d52',hair:'#43362f',accent:'#ffc863',skin:'#d7a781'},
@@ -603,7 +604,8 @@ const weapons=[
  {name:'Spara Cacca',emoji:'💩',color:0x92552d,rate:.31,power:1.25,kind:'shot',speed:30,description:'Proiettili puzzolenti marroni: rallentano gli avversari'},
  {name:'RPG Caramellato',emoji:'🚀',color:0xff9648,rate:1.45,power:5.6,kind:'boom',speed:24,description:'Razzo fantasy con grande esplosione ad area'},
  {name:'Lancia Joy-Con Switch',emoji:'🎮',color:0x25daeb,rate:.35,power:1.85,kind:'shot',speed:42,description:'Console portatile che lancia Joy-Con rossi e azzurri'},
- {name:'AK-47 Cartoon',emoji:'🔫',color:0xf5bd78,rate:.105,power:.92,kind:'shot',speed:59,description:'Fucile in stile cartoon a raffica veloce'}
+ {name:'AK-47 Cartoon',emoji:'🔫',color:0xf5bd78,rate:.105,power:.92,kind:'shot',speed:59,description:'Fucile in stile cartoon a raffica veloce'},
+ {name:'Pistola OP',emoji:'⚡',color:0xffe37c,rate:.083,power:999,kind:'shot',speed:87,description:'Arma segreta fortissima: /pistola op (solo admin)'}
 ];
 
 // A distinct muzzle, projectile/trail and impact style for each of the 24 cartoon weapons.
@@ -619,14 +621,14 @@ const FX_STYLE=[
  ['music','onde sonore','note musicali'],['ice','frammenti ghiacciati','brina celeste'],
  ['magnet','archi magnetici','scintille calamitate'],['donut','ciambelle in volo','vortice di ciambelle'],
  ['poop','spruzzo marrone','splat puzzolente'],['rpg','razzo arancione','boato caramellato'],
- ['joycon','Joy-Con volanti','pioggia di controller'],['ak','raffica cartoon','scintille ramate']
+ ['joycon','Joy-Con volanti','pioggia di controller'],['ak','raffica cartoon','scintille ramate'],['op','fulmine dorato','SUPER KO!']
 ];
 const FX_PALETTE=[[0xff9abf,0xffd6e8],[0x8ef7fb,0xffffff],[0xffd2ab,0xfffbef],[0xff6bac,0xffc7ec],
  [0x9b83ff,0xf4a8ff],[0xfff19d,0xfffce8],[0x98ffd5,0xecfff4],[0x7acbff,0xdef5ff],
  [0x9df35e,0xdbff8d],[0xffe466,0xffffff],[0xffa45f,0xffeec7],[0x8c4934,0xd3a174],
  [0xff6da7,0x86f9ff],[0x7c4c94,0xd6acfa],[0xffe3a1,0xffffff],[0x91deff,0xdffbff],
  [0xffbd80,0xeed8ff],[0xb7f9ff,0xffffff],[0xff86c7,0x9dffff],[0xd6a2f4,0xffd8a2],
- [0x85502b,0xc78b54],[0xff9a42,0xffdf82],[0x24cde0,0xff5869],[0xf8c18b,0xfff1bc]];
+ [0x85502b,0xc78b54],[0xff9a42,0xffdf82],[0x24cde0,0xff5869],[0xf8c18b,0xfff1bc],[0xffe37c,0xffffff]];
 window.__candyWeaponCatalog=weapons.map((w,i)=>({index:i,name:w.name,kind:w.kind}));
 let fxTick=0,fxHitTimer=0,fxShotTimer=0,fxGunKick=0,fxTagTimer=0,fxAudio=null;
 const fxMaterials=new Map();
@@ -649,6 +651,7 @@ function candyProjectile(index,at){let g=new THREE.Group();g.position.copy(at);s
   const thumb=fxShard(g,new THREE.SphereGeometry(.053,9,7),fxMat(0x26323d),0,.075,-.073);
   for(let j=0;j<3;j++)orb(.018,(j-1)*.045,-.09,-.073,b);
  }
+ else if(kind==='op'){const beam=fxShard(g,new THREE.CylinderGeometry(.10,.10,.6,12),a,0,0,0);beam.rotation.x=Math.PI/2;orb(.19,0,0,-.32,b);ring(.18,.035,b)}
  else if(kind==='ak'){
   const slug=fxShard(g,new THREE.CylinderGeometry(.045,.045,.38,10),b,0,0,0);slug.rotation.x=Math.PI/2;orb(.065,0,0,-.2,a);
  }
@@ -675,8 +678,8 @@ function fxSplat(pos,index){let g=new THREE.Group();g.position.copy(pos);let col
 function fxScreenSplat(index){if(paused)return;const layer=$('paintLayer');const cs=FX_PALETTE[index]||FX_PALETTE[0];let amount=index===12||index===10?11:6;for(let i=0;i<amount;i++){const n=document.createElement('i');n.className='paint-drop';let dx=(Math.random()-.5)*145,dy=(Math.random()-.5)*105;let size=5+Math.random()*19;n.style.cssText=`--px:${50+(Math.random()-.5)*12}%;--py:${49+(Math.random()-.5)*10}%;--dx:${dx}px;--dy:${dy}px;--ps:${size}px;--pr:${Math.random()>.5?'50%':'38% 56% 44% 67%'};--pc:#${cs[i%2].toString(16).padStart(6,'0')}`;layer.appendChild(n);setTimeout(()=>n.remove(),650)}}
 function fxImpact(pos,index,damage=true){
  const style=FX_STYLE[index][0],color=FX_PALETTE[index][0];
- const burstCount=[14,28,24,16,19,22,32,30,13,25,35,18,49,16,31,15,22,26,21,32,24,55,27,19][index];
- fxBurst(pos,index,burstCount,[5,9,6,6,8,8,10,8,4,8,12,5,15,5,9,5,7,8,10,10,5,16,9,6][index]);
+ const burstCount=[14,28,24,16,19,22,32,30,13,25,35,18,49,16,31,15,22,26,21,32,24,55,27,19,65][index];
+ fxBurst(pos,index,burstCount,[5,9,6,6,8,8,10,8,4,8,12,5,15,5,9,5,7,8,10,10,5,16,9,6,19][index]);
  if(style==='wave'||style==='music'||style==='rainbow'){for(let i=0;i<3;i++){const q=pos.clone().add(new THREE.Vector3(0,i*.12,0));fxRing(q,(index+i)%FX_PALETTE.length,.25+i*.24)}}
  else if(style==='bubble'){for(let i=0;i<5;i++){let v=pos.clone().add(new THREE.Vector3((Math.random()-.5)*.8,Math.random()*.7,(Math.random()-.5)*.8));fxRing(v,index,.1+Math.random()*.15)}}
  else if(style==='magnet'){fxRing(pos,index,.3);const v=pos.clone();v.y+=.12;fxRing(v,18,.62)}
@@ -688,6 +691,7 @@ function fxImpact(pos,index,damage=true){
  else if(style==='rpg'){for(let i=0;i<34;i++)fxParticle(pos.x,pos.y,pos.z,i%2?0xffdb84:color,.11,13,8,.75);for(let n=0;n<3;n++)fxRing(pos.clone().add(new THREE.Vector3(0,n*.12,0)),index,.55+n*.55)}
  else if(style==='joycon'){for(let i=0;i<16;i++)fxParticle(pos.x,pos.y,pos.z,i%2?0xff6172:0x20d6eb,.075,10,7,.56);fxRing(pos,index,.54)}
  else if(style==='ak'){fxBurst(pos,index,10,7);fxRing(pos,index,.27)}
+ else if(style==='op'){fxBurst(pos,index,55,15);fxRing(pos,index,1.25);fxRing(pos,index,.4)}
  else if(style==='star'){fxRing(pos,index,.17);fxRing(pos,9,.5)}
  else if(style==='confetti'||style==='sugar'||style==='fizz'){for(let i=0;i<12;i++)fxParticle(pos.x,pos.y,pos.z,FX_PALETTE[(index+i)%FX_PALETTE.length][0],.038,10,7,.52);fxRing(pos,index,.3)}
  else if(style==='sword'){fxRing(pos,index,.65);fxBurst(pos,12,9,12)}
@@ -695,7 +699,7 @@ function fxImpact(pos,index,damage=true){
  else fxRing(pos,index,.37);
  fxSplat(pos,index);
  if(damage){fxHitTimer=.16;fxScreenSplat(index);
-  if(fxTagTimer<=0){$('fxTag').textContent=['SPLAT!','TATATÁ!','POF!','ZUCCHERO!','SWISH!','FRIZZ!','CRUNCH!','SPLASH!','ZAP!','STELLARE!','BOOOM!','CIOCCO-SPLAT!','WOW!','POP!','POPCORN!','BLOP!','DO-RE-MI!','CRACK!','ZING!','DONUT!','PLOP!','RPG BOOM!','JOY-CON!','TATATÀ!'][index];$('fxTag').style.opacity=1;fxTagTimer=.28;}
+  if(fxTagTimer<=0){$('fxTag').textContent=['SPLAT!','TATATÁ!','POF!','ZUCCHERO!','SWISH!','FRIZZ!','CRUNCH!','SPLASH!','ZAP!','STELLARE!','BOOOM!','CIOCCO-SPLAT!','WOW!','POP!','POPCORN!','BLOP!','DO-RE-MI!','CRACK!','ZING!','DONUT!','PLOP!','RPG BOOM!','JOY-CON!','TATATÀ!','OP KO!'][index];$('fxTag').style.opacity=1;fxTagTimer=.28;}
  }
 }
 
@@ -864,6 +868,12 @@ function buildHeldWeapon(index){
    mount(new THREE.BoxGeometry(.18,.43,.19),rubber,0,-.34,-.40);
    break;
  }
+ case 24: { // Glowing oversized admin pistol; requires /pistola op
+   basicPistol(1.17);const gold=weaponMaterial('energy','#ffc72a','#fff9d0','#9d5e13',.22,.21);
+   pipe(.12,.67,0,.06,-.83,gold);tubeEnd(1.20,.11);
+   for(let i=0;i<3;i++)ring(.14+i*.04,.017,0,.07,-1.14,gold);
+   sphere(.17,0,.26,-.45,gold);sphere(.08,.0,.42,-.45,gem);break;
+ }
  case 23: { // AK-47-inspired cartoon rifle with dark body and wooden stock
    rifle('rifle');
    const woodAK=weaponMaterial('wood','#996235','#d0a074','#613c23',.65,.08);
@@ -880,7 +890,7 @@ function buildHeldWeapon(index){
  default: rifle('rifle');
  }
  // Small enough to remain below the centerline when aiming.
- heldDecor.scale.setScalar([2,10,19,21,22,23].includes(index)?.77:.90);
+ heldDecor.scale.setScalar([2,10,19,21,22,23,24].includes(index)?.77:.90);
  heldDecor.position.set(0,0,0);
  heldDecor.rotation.y=-.04;
 }
@@ -889,7 +899,7 @@ function fxMuzzle(index){const d=shotDirection();let r=new THREE.Vector3(Math.co
  let t=FX_STYLE[index][0],n=t==='confetti'||t==='sugar'||t==='ak'?9:t==='meteor'||t==='rainbow'||t==='rpg'?21:5;fxBurst(p,index,n,t==='laser'?2:5);if(['wave','rainbow','music','meteor','donut','rpg'].includes(t))fxRing(p,index,.36);if(t==='laser'){fxRing(p,index,.11)}
  fxShotTimer=.1;fxGunKick=Math.min(.21,fxGunKick+.06);
  if(fxAudio===null){try{fxAudio=new (window.AudioContext||window.webkitAudioContext)()}catch(e){fxAudio=false}}if(fxAudio&&fxAudio.state==='suspended')fxAudio.resume().catch(()=>{});
- if(fxAudio&&fxAudio.state==='running'){let o=fxAudio.createOscillator(),gain=fxAudio.createGain();let now=fxAudio.currentTime,rate=[310,560,110,240,390,750,830,95,1120,700,145,155,100,410,180,530,220,640,840,125,175,105,510,390][index];o.type=['sine','triangle','sawtooth','square'][index%4];o.frequency.setValueAtTime(rate,now);o.frequency.exponentialRampToValueAtTime(Math.max(55,rate*.48),now+.09);gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.015,now+.006);gain.gain.exponentialRampToValueAtTime(.0001,now+.11);o.connect(gain);gain.connect(fxAudio.destination);o.start(now);o.stop(now+.12)}
+ if(fxAudio&&fxAudio.state==='running'){let o=fxAudio.createOscillator(),gain=fxAudio.createGain();let now=fxAudio.currentTime,rate=[310,560,110,240,390,750,830,95,1120,700,145,155,100,410,180,530,220,640,840,125,175,105,510,390,980][index];o.type=['sine','triangle','sawtooth','square'][index%4];o.frequency.setValueAtTime(rate,now);o.frequency.exponentialRampToValueAtTime(Math.max(55,rate*.48),now+.09);gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.015,now+.006);gain.gain.exponentialRampToValueAtTime(.0001,now+.11);o.connect(gain);gain.connect(fxAudio.destination);o.start(now);o.stop(now+.12)}
 }
 function fxFrame(dt){fxHitTimer=Math.max(0,fxHitTimer-dt);fxShotTimer=Math.max(0,fxShotTimer-dt);fxGunKick=Math.max(0,fxGunKick-dt*.95);fxTagTimer=Math.max(0,fxTagTimer-dt);if(fxTagTimer===0)$('fxTag').style.opacity=0;$('reticle').classList.toggle('hitmark',fxHitTimer>0);$('reticle').classList.toggle('fired',fxShotTimer>0);handItem.rotation.x=-fxGunKick*1.7;heldDecor.rotation.z=Math.sin(visualTime*4)*.045;for(let e of [...effects3D]){e.life-=dt;if(e.kind==='splat')e.mesh.quaternion.copy(camera.quaternion);else{let v=(e.max-e.life)/e.max;e.mesh.scale.setScalar(1+v*2.6)}if(e.life<=0){scene.remove(e.mesh);e.mesh.traverse(node=>{if(node.geometry)node.geometry.dispose()});effects3D.splice(effects3D.indexOf(e),1)}}}
 
@@ -1118,10 +1128,10 @@ function uiModal(title,body,buttons=[],tag='CANDY CHAOS 3D'){paused=true;shootin
 function resume(){if(gameDone)return;quizIndex=-1;currentModal='game';paused=false;playing=true;$('modal').classList.add('hidden');renderer.domElement.requestPointerLock?.()}
 function start(){resume();toast('🍬 ESPLORA, SALTA, RISOLVI I LIBRI E TROVA I 20 FINALI!',4)}
 // The mode picker is the true entry point; it is initialized after all game functions have been defined.
-function chooseWeapon(i){if(i<0||i>=weapons.length)return;if(gameMode!=='creative'&&i!==0&&i<20&&!state.books.includes(i-1)){toast('📖 Devi risolvere l’operazione del libro!');return}state.weapon=i;const w=weapons[i];$('weaponTitle').textContent=w.emoji+' '+w.name;buildHeldWeapon(i);$('weaponInfo').textContent='✨ '+FX_STYLE[i][1]+' → '+FX_STYLE[i][2]+' · click destro mira · Q cambia';toast('✨ '+w.name+' equipaggiata!');safeSave()}
-function switchWeapon(){for(let i=1;i<=weapons.length;i++){let n=(state.weapon+i)%weapons.length;if(gameMode==='creative'||n===0||n>=20||state.books.includes(n-1)){chooseWeapon(n);break}}}
+function chooseWeapon(i){if(i<0||i>=weapons.length)return;if(i===24&&!adminOpGun){toast('🔒 Pistola OP: usa /pistola op come amministratore.');return}if(gameMode!=='creative'&&i!==0&&i<20&&!state.books.includes(i-1)){toast('📖 Devi risolvere l’operazione del libro!');return}state.weapon=i;const w=weapons[i];$('weaponTitle').textContent=w.emoji+' '+w.name;buildHeldWeapon(i);$('weaponInfo').textContent='✨ '+FX_STYLE[i][1]+' → '+FX_STYLE[i][2]+' · click destro mira · Q cambia';toast('✨ '+w.name+' equipaggiata!');safeSave()}
+function switchWeapon(){for(let i=1;i<=weapons.length;i++){let n=(state.weapon+i)%weapons.length;if((n===24?adminOpGun:gameMode==='creative'||n===0||n>=20||state.books.includes(n-1))){chooseWeapon(n);break}}}
 chooseWeapon(clamp(state.weapon,0,weapons.length-1));
-function inventory(){let tiles=weapons.map((w,i)=>{let ok=gameMode==='creative'||i===0||i>=20||state.books.includes(i-1);return `<div class="tile ${ok?'':'dim'}"><b>${i+1}. ${w.emoji} ${w.name}</b><span>${w.description}</span><span>${ok?'✅ SBLOCCATA':'🔒 RISOLVI IL LIBRO'}</span><button class="btn pickWeapon" data-w="${i}" ${ok?'':'disabled'}>Equipaggia</button></div>`}).join('');uiModal('🎒 Equipaggiamento',`<p>${gameMode==='creative'?'Modalità Creativa: tutte le 24 armi sono già disponibili.':'Le 4 nuove armi sono subito disponibili! Per sbloccare le altre 19 devi risolvere i libri.'}</p><div class="tiles">${tiles}</div>`,[{text:'▶ TORNA AL GIOCO',fn:resume}],'INVENTARIO');document.querySelectorAll('.pickWeapon').forEach(el=>el.onclick=()=>{chooseWeapon(+el.dataset.w);resume()})}
+function inventory(){let tiles=weapons.map((w,i)=>{let ok=(i===24?adminOpGun:gameMode==='creative'||i===0||i>=20||state.books.includes(i-1));return `<div class="tile ${ok?'':'dim'}"><b>${i+1}. ${w.emoji} ${w.name}</b><span>${w.description}</span><span>${ok?'✅ SBLOCCATA':'🔒 RISOLVI IL LIBRO'}</span><button class="btn pickWeapon" data-w="${i}" ${ok?'':'disabled'}>Equipaggia</button></div>`}).join('');uiModal('🎒 Equipaggiamento',`<p>${gameMode==='creative'?'Modalità Creativa: tutte le 24 armi sono già disponibili.':'Le 4 nuove armi sono subito disponibili! Per sbloccare le altre 19 devi risolvere i libri. Pistola OP: /pistola op.'}</p><div class="tiles">${tiles}</div>`,[{text:'▶ TORNA AL GIOCO',fn:resume}],'INVENTARIO');document.querySelectorAll('.pickWeapon').forEach(el=>el.onclick=()=>{chooseWeapon(+el.dataset.w);resume()})}
 function endingsMenu(){if(gameMode==='multi'){toast('🏆 In multiplayer vince chi raccoglie più caramelle!');return}const markup=endings.map(e=>{let ok=e.ok(),done=state.finals.includes(e.id);return `<div class="tile ${ok?'':'dim'}"><b>${e.id}. ${e.emoji} ${e.title}</b><span>${e.need}</span><span>${done?'🏅 FINALE GIÀ SCOPERTO':ok?'✅ DISPONIBILE':'🔒 ANCORA BLOCCATO'}</span><button class="btn doEnding" data-id="${e.id}" ${ok?'':'disabled'}>${done?'Rivedi finale':'Scopri il finale'}</button></div>`}).join('');uiModal('🏆 I 20 finali di Candy Chaos',`<p><b>${state.finals.length}/20 finali scoperti.</b> Ogni finale richiede una vera sfida. Alcuni possono essere completati senza combattimenti! I progressi vengono salvati sul browser.</p><div class="tiles">${markup}</div>`,[{text:'▶ CONTINUA A ESPLORARE',fn:resume}],'LIBRO DEI DESTINI');document.querySelectorAll('.doEnding').forEach(el=>el.onclick=()=>completeEnding(+el.dataset.id))}
 function completeEnding(id){const e=endings.find(v=>v.id===id);if(!e||!e.ok()){toast('Devi ancora soddisfare le condizioni!');return}if(!state.finals.includes(id))state.finals.push(id);safeSave();puff(state.x,1.7,state.z,0xffd277,50,10);uiModal(`${e.emoji} FINALE ${e.id}: ${e.title.toUpperCase()}`,`<p style="font-size:17px">${e.story}</p><div class="feature">🏅 Finali sbloccati: <b>${state.finals.length} su 20</b> · Caramelle: <b>${state.candy}/${TOTAL_CANDY}</b> · Libri: <b>${state.books.length}/${bookDefs.length}</b></div><p>Questo è uno dei 20 finali alternativi. Puoi continuare nella stessa partita e scoprirli tutti!</p>`,[{text:'🌍 CONTINUA IL MONDO APERTO',fn:resume},{text:'📜 VEDI TUTTI I FINALI',fn:endingsMenu,secondary:true}],'FINALE SCOPERTO')}
 function showMap(){mapExpanded=!mapExpanded;$('minimap').style.width=mapExpanded?'300px':'170px';$('minimap').style.height=mapExpanded?'300px':'170px';toast(mapExpanded?'🗺️ Mappa ingrandita':'🗺️ Mappa normale')}
@@ -1376,7 +1386,7 @@ for(let i=0;i<friends.length;i++){friends[i].saved=state.friendsHelped.includes(
 // ====== MODES + ONLINE SIX-DIGIT ROOMS ======
 const escapeHTML=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function fullCandyReset(){for(const c of [...pickups]){scene.remove(c.mesh)}pickups.length=0;for(let i=0;i<candySpots.length;i++)createCandy(...candySpots[i],i);state.collected=[];state.candy=0;}
-function resetModePlayer(){state.x=0;state.z=27;state.y=0;state.vx=0;state.vz=0;state.vy=0;state.hp=100;state.st=100;state.invincible=0;state.books=[];state.weapon=0;state.shotCD=0;state.checkpoint={x:0,z:27};player.position.set(0,0,27);applyCharacterSkin();chooseWeapon(0)}
+function resetModePlayer(){state.x=0;state.z=27;state.y=0;state.vx=0;state.vz=0;state.vy=0;state.hp=100;state.st=100;state.invincible=0;state.books=[];state.weapon=0;state.shotCD=0;adminOpGun=false;state.checkpoint={x:0,z:27};player.position.set(0,0,27);applyCharacterSkin();chooseWeapon(0)}
 function setMode(mode){gameMode=mode;if(mode==='multi'&&!onlineHost)for(const k in cheatFlags)cheatFlags[k]=false;cheats.fly=false;cheats.aimbot=false;cheats.freeze=false;roomFreeze=false;$('modeBanner').textContent=mode==='creative'?'✨ CREATIVA · INVINCIBILE · 24 ARMI':mode==='single'?'🎮 GIOCATORE SINGOLO · AVVENTURA':'📡 MULTIGIOCATORE LAN · CACCIA ALLE CARAMELLE';$('lobbyHud').style.display=mode==='multi'?'block':'none';for(const e of enemies)e.group.visible=mode!=='multi'&&e.alive;if(mode==='creative'){fullCandyReset();resetModePlayer();state.hp=100;toast('✨ 24 ARMI SBLOCCATE · ENERGIA INFINITA',3)}if(mode==='multi'){fullCandyReset();resetModePlayer()} }
 function initModeMenu(){gameMode='menu';paused=true;playing=false;uiModal('🍬 CANDY CHAOS 3D',`<div class="menuBanner">SCHERMATA PRINCIPALE</div><p>24 armi con modelli 3D, comprese 💩 Spara Cacca, 🚀 RPG, 🎮 Lancia Joy-Con Switch e 🔫 AK-47 Cartoon! Mondo più vasto, bar e casinò arcade con stanze accessibili, 10 nuovi nemici, più caramelle, torri, multiplayer e skin.</p><div class="feature">🍬 Le caramelle raccolte e le vittorie fanno guadagnare crediti per le skin (100–300 🍬). Totale disponibile: <b style="font-size:22px;color:#ffe08b">${cosmeticState.candies}</b></div><div id="modeSelection"><button class="modeCard" id="playCard"><span class="bigicon">▶</span><b>GIOCA</b><small>Apri la schermata con tutte le modalità disponibili.</small></button><button class="modeCard" id="shopCard"><span class="bigicon">🛍️</span><b>SKIN E SHOP</b><small>Compra ed equipaggia skin per personaggio e armi usando le caramelle.</small></button><button class="modeCard" id="multiCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Gioca con amici anche senza Internet, sullo stesso Wi-Fi o hotspot. Stanze con codice a 6 cifre.</small></button></div>`,[], 'MENU PRINCIPALE');$('playCard').onclick=showPlayModes;$('shopCard').onclick=showSkinShop;$('multiCard').onclick=showMultiplayerMenu;}
 function showPlayModes(){uiModal('🎮 MODALITÀ DI GIOCO',`<div class="menuBanner">SCEGLI COME GIOCARE</div><div id="modeSelection"><button class="modeCard" id="creativeCard"><span class="bigicon">✨</span><b>CREATIVA</b><small>Tutte le armi subito disponibili. Non puoi perdere energia. Esplora e fai parkour. Premi X per il menu trucchi.</small></button><button class="modeCard" id="soloCard"><span class="bigicon">🎮</span><b>GIOCATORE SINGOLO</b><small>Avventura completa, libri con operazioni, boss e 20 finali.</small></button><button class="modeCard" id="partyCard"><span class="bigicon">🌐</span><b>MULTIGIOCATORE</b><small>Crea una stanza locale, invita amici e gioca anche senza Internet.</small></button></div>`,[{text:'⬅ TORNA',fn:initModeMenu,secondary:true}],'TUTTE LE MODALITÀ');$('creativeCard').onclick=()=>{setMode('creative');resume();toast('🌈 MODALITÀ CREATIVA!',2.5)};$('soloCard').onclick=()=>{setMode('single'); try{let saved=JSON.parse(localStorage.getItem('candy-chaos-ultimate-v2')||'null');if(saved&&Array.isArray(saved.books)){for(let k of Object.keys(saved))if(k in state)state[k]=saved[k];for(let c of [...pickups])if(state.collected.includes(c.id)){scene.remove(c.mesh);pickups.splice(pickups.indexOf(c),1)}}}catch(e){} chooseWeapon(state.weapon); start()}; $('partyCard').onclick=showMultiplayerMenu;}
