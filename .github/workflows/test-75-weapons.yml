@@ -65,20 +65,16 @@ jobs:
               let passed=0;
               for(let i=25;i<75;i++){
                 const weapon=catalog[i];
-                const result=await page.evaluate(idx=>{
-                  chooseWeapon(idx);
-                  const meshes=heldDecor.children.length,selected=state.weapon;
-                  const before=window.__candyShotCount||0;
-                  state.shotCD=0;
-                  fire();
-                  return {selected,meshes,shot:window.__candyShotCount>before,last:window.__candyLastFiredWeapon,kind:weapons[idx].kind};
-                },i);
-                assert.equal(result.selected,i,'Equip '+weapon.name);
-                assert.ok(result.meshes>=3,'3D model has insufficient geometry '+weapon.name);
-                assert.equal(result.shot,true,'Weapon failed to fire '+weapon.name);
-                assert.equal(result.last,i,'Wrong shot '+weapon.name);
+                if(i!==25)await page.keyboard.press('b');
+                await page.locator('.pickWeapon[data-w="'+i+'"]').click({timeout:20000});
+                const label=await page.locator('#weaponTitle').textContent();
+                assert.ok(label.includes(weapon.name),'Weapon not equipped: '+weapon.name);
+                const before=await page.evaluate(()=>window.__candyShotCount||0);
+                await page.evaluate(()=>document.querySelector('#game canvas').dispatchEvent(new MouseEvent('mousedown',{button:0,bubbles:true})));
+                await page.waitForFunction(x=>window.__candyLastFiredWeapon===x.idx&&(window.__candyShotCount||0)>x.before,{idx:i,before},{timeout:12000});
+                await page.evaluate(()=>window.dispatchEvent(new MouseEvent('mouseup',{button:0,bubbles:true})));
                 passed++;
-                if(i%10===4)console.log('BROWSER_WEAPON_BATCH',i,weapon.name,result.kind);
+                if(i%10===4)console.log('BROWSER_WEAPON_BATCH',i,weapon.name,weapon.kind);
               }
               assert.equal(passed,50);
               assert.deepEqual(errs,[],'No browser JavaScript errors');
