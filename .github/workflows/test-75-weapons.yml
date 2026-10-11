@@ -65,7 +65,7 @@ jobs:
               let passed=0;
               for(let i=25;i<75;i++){
                 const weapon=catalog[i];
-                if(i!==25)await page.keyboard.press('b');
+                await page.keyboard.press('b');
                 await page.locator('.pickWeapon[data-w="'+i+'"]').click({timeout:20000});
                 const label=await page.locator('#weaponTitle').textContent();
                 assert.ok(label.includes(weapon.name),'Weapon not equipped: '+weapon.name);
