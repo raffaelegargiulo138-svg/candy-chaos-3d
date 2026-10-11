@@ -1,0 +1,81 @@
+CANDY CHAOS 3D — AGGIORNAMENTO: 50 NUOVE ARMI!
+===========================================
+
+L'arsenale ora contiene 75 armi: 24 originali, 50 nuove e 1 Pistola OP segreta per l'amministratore.
+
+Le 50 NUOVE armi sono disponibili immediatamente in tutte le modalità.
+Premi B durante la partita: la lista si apre già filtrata sulle nuove armi.
+Usa il campo di ricerca o seleziona Tutte le 75 armi.
+Equipaggia l'arma e spara con il tasto sinistro del mouse.
+Q o rotella per cambiare arma, tasto destro per mirare.
+
+Le nuove armi hanno modelli 3D, proiettili modellati in base al tema,
+colori personalizzati, cadenza e danni diversi.
+Il multiplayer LAN riconosce e convalida sul server le 75 armi:
+la Pistola OP resta disponibile soltanto a chi usa /pistola op come admin.
+
+ELENCO 50 NUOVE ARMI (26-75):
+26. 🦄 Cannone Unicorno — Razzo di stelle degli unicorni
+27. 🥜 Pistola Pistacchio — Palline di pistacchio croccanti
+28. 🍓 Fucile Fragola — Raffiche di fragoline luccicanti
+29. ❄️ Raggio Ghiaccio Polare — Cristalli che rallentano i nemici
+30. 🍉 Spara Anguria — Semi e fette d'anguria in volo
+31. 🐸 Lancia Ranocchie — Rane elastiche rimbalzanti
+32. 🟢 Bazooka Slime — Gelatina verde esplosiva
+33. 🌈 Onda Quantica — Onda arcobaleno a 360 gradi
+34. 🍋 Cannone Limone Acido — Limoni frizzanti esplosivi
+35. 🐉 Soffio del Drago — Cometa di fuoco fantastico
+36. 🐱 Mitraglietta Miao — Zampette fluorescenti a raffica
+37. 🧁 Balestra Cupcake — Cupcake come frecce morbide
+38. 💎 Spada Diamantina — Fendenti di diamante scintillante
+39. 🔨 Martello Meteorico — Martellata con scia di meteore
+40. 🍈 Super Bazooka Melone — Esplosioni di melone
+41. ⚡ Fulmine Elettrico — Saette azzurre velocissime
+42. 🍕 Lancia Pizza — Pizze esplosive dal forno spaziale
+43. 🥤 Cannone Soda — Bolle gassate a pressione
+44. 🪄 Bacchetta Stregata — Incantesimo di scintille magiche
+45. 🌨️ Tormenta Bianca — Tempesta di neve scintillante
+46. 🫧 Spara Chewing Gum — Bolle rosa superelastiche
+47. 🌈 Laser Neon — Laser arcobaleno velocissimo
+48. 💥 Mazza Boom Candy — Martello con impatto esplosivo
+49. 📚 Lancia Libri Magici — Libri incantati volanti
+50. 🍫 Cannone Fonduta — Colata di cioccolato esplosiva
+51. 🍇 Raffica Uva — Chicchi d'uva a raffica
+52. 🍟 Mitragliatrice Patatine — Patatine croccanti volanti
+53. 🤖 Blaster Robotico — Dadi digitali color ciano
+54. 🌒 Scettro Eclissi — Onda d'ombra lunare
+55. 🌠 Lama Stellare — Spada luminosa delle stelle
+56. 👾 Pistola Pixel — Cubi pixelati arcade
+57. 👻 Blaster Fantasma — Fantasmini trasparenti
+58. 🦖 Cannone Dinosauro — Uova preistoriche scoppiettanti
+59. 🦴 Fionda Crocchette — Ossicini di biscotto
+60. 🧀 Fucile Formaggio — Cubetti di formaggio rotanti
+61. 🔱 Tridente Marino — Tridente con onde azzurre
+62. ☁️ Nuvola Zuccherata — Soffione di zucchero filato
+63. 🏴‍☠️ Pistola Pirata — Gettoni dorati del corsaro
+64. 🛸 Disco UFO — Piccoli dischi volanti
+65. ☄️ Bazooka Cometa — Comete con scia luminosa
+66. 🫧 Mega Bolle — Bolle giganti traslucide
+67. 🍣 Mitra Sushi — Maki volanti che rimbalzano
+68. 🍔 Martello Hamburger — Martellata al doppio hamburger
+69. 🧸 Cannone Orsetti Giganti — Orsetti di gelatina esplosivi
+70. 🌋 Pistola Lava Magica — Gocce di lava luminosa
+71. 🔥 Aura del Drago — Anello di fiammelle fantastiche
+72. 🕸️ Lancia Ragnatele — Reti luminose rallentanti
+73. ⛈️ Bastone Tempesta — Tuoni e fulmini colorati
+74. ✨ Cannone Polvere Stellare — Scia di polvere stellare
+75. ⚔️ Spada del Tuono — Fendente con saette blu
+
+ALTRI COMANDI DEL GIOCO:
+T = chat testuale; / = menu comandi amministratore (15 comandi);
+X = 25 trucchi; TAB = elenco giocatori; B = inventario.
+
+WINDOWS: NON È UN INSTALLATORE
+Questo pacchetto contiene file HTML/JS/JSON/testo e non EXE, BAT, CMD o MSI.
+Scarica Node.js LTS da https://nodejs.org/en/download/ per ospitare le partite LAN.
+Apri la cartella estratta, digita cmd nella barra del percorso e usa: node server.js
+Apri http://localhost:3000 sul PC host.
+Gli amici sullo stesso Wi-Fi aprono l'indirizzo http://192.168.x.x:3000 mostrato dal server.
+La scritta "Non sicuro" nel browser su HTTP indica che il traffico LAN NON è cifrato.
+Il pacchetto NON è firmato o certificato da Microsoft: non disattivare Defender
+né ignorare avvisi di sicurezza. Controlla il file di hash SHA256 allegato.
