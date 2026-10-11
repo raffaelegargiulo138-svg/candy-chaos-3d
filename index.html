@@ -677,7 +677,43 @@ function fxShard(g,geom,material,x,y,z,sx=1,sy=1,sz=1){let m=new THREE.Mesh(geom
 function candyProjectile(index,at){let g=new THREE.Group();g.position.copy(at);scene.add(g);const [c1,c2]=FX_PALETTE[index];let a=fxMat(c1),b=fxMat(c2),kind=FX_STYLE[index][0];
  const orb=(r,x=0,y=0,z=0,m=a)=>{let v=new THREE.Mesh(new THREE.SphereGeometry(r,8,7),m);v.position.set(x,y,z);g.add(v);return v};
  const ring=(r,t,material=b)=>fxShard(g,new THREE.TorusGeometry(r,t,6,14),material,0,0,0);
- if(kind==='bubble'||kind==='tapioca'){orb(kind==='bubble'?.24:.18,0,0,0,fxMat(c1,kind==='bubble'));ring(.23,.013)}
+ if(index>=25){
+  // Geometry is selected by the individual weapon's fantasy motif.
+  const w=weapons[index],shape=w.shape,seed=index-25;
+  const cube=(x,y,z,sx,sy,sz,m=a)=>fxShard(g,new THREE.BoxGeometry(sx,sy,sz),m,x,y,z);
+  const stone=(r=.20)=>fxShard(g,new THREE.OctahedronGeometry(r,0),a,0,0,0);
+  const spike=(r=.13,h=.33)=>{const v=fxShard(g,new THREE.ConeGeometry(r,h,9),b,0,.03,-.18);v.rotation.x=-Math.PI/2;return v};
+  if(['star','dust','burst'].includes(shape)){
+    const st=new THREE.Shape();for(let i=0;i<10;i++){const rad=i%2?.09:.24,an=i*Math.PI/5-Math.PI/2;i?st.lineTo(Math.cos(an)*rad,Math.sin(an)*rad):st.moveTo(Math.cos(an)*rad,Math.sin(an)*rad)}st.closePath();
+    fxShard(g,new THREE.ShapeGeometry(st),a,0,0,0);orb(.075,0,0,.04,b);
+    for(let i=0;i<3;i++)orb(.045,Math.sin(seed+i)*.17,Math.cos(seed+i)*.17,-.15-i*.07,b);
+  }else if(['fruit','melon','seed'].includes(shape)){
+    orb(shape==='seed'?.11:.23,0,0,0,a);
+    for(let i=0;i<4;i++)orb(.035,Math.sin(i*Math.PI/2)*.12,Math.cos(i*Math.PI/2)*.12,.19,b);
+    fxShard(g,new THREE.ConeGeometry(.085,.18,7),b,0,.22,0);
+  }else if(['crystal','snow'].includes(shape)){
+    const gem=stone(.24);gem.scale.set(1,1.6,.65);spike(.075,.23);orb(.07,0,0,-.20,b);
+  }else if(['bubble','cloud','ghost','slime'].includes(shape)){
+    for(let i=0;i<5;i++)orb(.095+(i%2)*.03,Math.sin(i*2.5)*.14,Math.cos(i*2.5)*.12,Math.sin(i)*.11,shape==='bubble'?fxMat(c1,true):i%2?a:b);
+    ring(.24,.018,b);
+  }else if(['bolt','beam','lava','flame','meteor'].includes(shape)){
+    const beam=fxShard(g,new THREE.CylinderGeometry(.055,.09,.50,8),a,0,0,0);beam.rotation.x=Math.PI/2;
+    for(let i=0;i<3;i++)fxShard(g,new THREE.TetrahedronGeometry(.10+i*.019),i%2?b:a,Math.sin(seed+i*2.3)*.10,Math.cos(i)*.07,-.23-i*.12);
+  }else if(['pizza','slice','cheese','book','pixel','fries','sushi'].includes(shape)){
+    cube(0,0,0,.25,.20,.35);cube(0,.10,-.045,.20,.045,.23,b);
+    for(let i=0;i<3;i++)orb(.037,(i-1)*.069,.13,0,b);
+  }else if(['paw','frog','dino','bear','burger','bone'].includes(shape)){
+    orb(.18,0,0,0);
+    for(let i=0;i<4;i++)orb(.065,Math.sin(i*Math.PI/2)*.15,.09+Math.cos(i*Math.PI/2)*.13,-.02,b);
+  }else if(['wave','spiral','web','moon','ufo','coin'].includes(shape)){
+    ring(.20,.044,a);const v=ring(.12,.020,b);v.rotation.y=.65;stone(.11);
+  }else if(shape==='cupcake'||shape==='choco'){
+    const cup=fxShard(g,new THREE.CylinderGeometry(.15,.12,.19,10),a,0,-.07,0);cup.rotation.x=Math.PI/2;
+    orb(.17,0,.09,0,b);spike(.06,.18);
+  }else{stone(.20);ring(.23,.024,b)}
+  // The index-specific satellites add 50 unique, recognizable combinations.
+  for(let j=0;j<1+(seed%3);j++)orb(.028+j*.008,Math.sin(seed*.37+j*2.5)*(.18+j*.035),Math.cos(seed*.41+j*2.5)*(.15+j*.04),.05-j*.095,j%2?a:b);
+ }else if(kind==='bubble'||kind==='tapioca'){orb(kind==='bubble'?.24:.18,0,0,0,fxMat(c1,kind==='bubble'));ring(.23,.013)}
  else if(kind==='donut'){ring(.23,.085);orb(.095,0,0,.06,a);}
  else if(kind==='poop'){orb(.18,0,-.075,0);orb(.145,-.01,.09,0);orb(.09,0,.19,0);fxShard(g,new THREE.ConeGeometry(.07,.16,9),b,0,.26,0);orb(.025,-.07,.09,.16,b);orb(.025,.07,.09,.16,b)}
  else if(kind==='rpg'){
@@ -857,6 +893,47 @@ function buildHeldWeapon(index){
    part(.013,-.026,.091,.071,dot);part(.013,.026,.091,.071,dot);part(.011,0,.039,.098,dot);
    for(let sx of [-1,1]){part(.030,sx*.074,.018,0);part(.025,sx*.039,-.010,.018)}
  };
+ const extraModel=()=>{
+  const w=weapons[index],seed=index-25;
+  const primary=weaponMaterial('candy','#'+w.color.toString(16).padStart(6,'0'),'#'+w.accent.toString(16).padStart(6,'0'),'#293442',.35,.13);
+  const luminous=weaponMaterial('energy','#'+w.accent.toString(16).padStart(6,'0'),'#ffffff','#'+w.color.toString(16).padStart(6,'0'),.20,.12);
+  switch(w.model){
+   case 'pistol': basicPistol(.77+(seed%4)*.07);break;
+   case 'smg': rifle('smg');break;
+   case 'rifle': rifle('rifle');break;
+   case 'marksman': rifle('marksman');break;
+   case 'shotgun': rifle('shotgun');break;
+   case 'launcher': launcher('rocket');break;
+   case 'cannon': launcher('cannon');break;
+   case 'wand': wand();break;
+   case 'staff': wand();pipe(.08,.92,0,.01,-.53,primary);break;
+   case 'blade': blade('sword');break;
+   case 'hammer': hammer();break;
+   case 'crossbow': rifle('smg');for(const sg of [-1,1]){line([0,.08,-.91],[sg*.41,.29,-1.06],.025,primary);line([sg*.41,.29,-1.06],[0,.04,-1.30],.014,luminous)}break;
+   case 'minigun': rifle('smg');for(let k=0;k<6;k++){const an=k*Math.PI/3;pipe(.023,.57,Math.sin(an)*.10,.05+Math.cos(an)*.10,-1.04,primary)}break;
+   default: rifle('rifle');
+  }
+  // Signature 3D gem, crest and chamber; each weapon has its own silhouette and colors.
+  const motif=w.shape,hasBarrel=['rifle','marksman','shotgun','smg','pistol','crossbow','minigun','cannon','launcher'].includes(w.model);
+  const baseY=hasBarrel?.28:.12,baseZ=hasBarrel?-.55:-.79;
+  const gemShape=motif==='star'||motif==='bolt'?new THREE.TetrahedronGeometry(.145):
+     motif==='fruit'||motif==='burger'||motif==='bear'?new THREE.SphereGeometry(.15,12,9):
+     motif==='pixel'||motif==='book'||motif==='pizza'?new THREE.BoxGeometry(.24,.24,.24):
+     motif==='moon'||motif==='web'||motif==='ufo'?new THREE.TorusGeometry(.15,.035,6,16):
+     new THREE.OctahedronGeometry(.16);
+  const emblem=mount(gemShape,primary,0,baseY,baseZ);emblem.rotation.z=(seed%8)*Math.PI/10;
+  sphere(.075,0,baseY+.15,baseZ-.11,luminous);
+  for(let j=0;j<2+seed%3;j++){
+    const rr=.085+(j%2)*.035;
+    const v=ring(rr,.015,(j%2===0?-.11:.11),baseY-.02+j*.065,baseZ-.14-j*.10,j%2?primary:luminous);
+    v.rotation.y=(seed%6)*Math.PI/12;
+  }
+  if(motif==='crystal'||motif==='snow')mount(new THREE.OctahedronGeometry(.24),luminous,0,baseY+.30,baseZ-.11);
+  if(motif==='flame'||motif==='lava'||motif==='meteor')mount(new THREE.ConeGeometry(.16,.31,10),primary,0,baseY+.31,baseZ-.11);
+  if(motif==='cloud'||motif==='slime'||motif==='bubble')for(const sg of [-1,1])sphere(.10,sg*.13,baseY+.15,baseZ-.13,primary);
+  if(motif==='star'||motif==='dust')for(const sg of [-1,1])mount(new THREE.TetrahedronGeometry(.087),luminous,sg*.2,baseY+.21,baseZ-.11);
+  if(hasBarrel)for(let j=0;j<1+(seed%4);j++)ring(.07+j*.018,.008,0,.045,-.91-j*.09,primary);
+ };
  switch(index){
  case 0: basicPistol(.75);bear();break;
  case 1: rifle('smg');break;
@@ -931,10 +1008,10 @@ function buildHeldWeapon(index){
    break;
  }
 
- default: rifle('rifle');
+ default: if(index>=25)extraModel();else rifle('rifle');
  }
  // Small enough to remain below the centerline when aiming.
- heldDecor.scale.setScalar([2,10,19,21,22,23,24].includes(index)?.77:.90);
+ heldDecor.scale.setScalar(index>=25?(weapons[index].kind==='boom'?.74:.83):([2,10,19,21,22,23,24].includes(index)?.77:.90));
  heldDecor.position.set(0,0,0);
  heldDecor.rotation.y=-.04;
 }
